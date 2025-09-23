@@ -22,6 +22,7 @@
                 <li><a href="#" id="nav-eventos">Eventos</a></li>
                 <li><a href="#" id="nav-mapa">Mapa</a></li>
                 <li><a href="#" id="nav-usuarios">Usuarios</a></li>
+                <!-- El info del usuario se añade dinámicamente aquí -->
             </ul>
         </nav>
     </header>
@@ -42,30 +43,36 @@
         <section class="eventos">
             <h2>Eventos Recientes</h2>
             <div id="contadorEventos" class="contador-eventos">
-                <span>Cargando eventos...</span>
+                <span>Inicializando...</span>
             </div>
-            <ul id="listaEventos"></ul>
+            <ul id="listaEventos">
+                <li class="sin-eventos">
+                    <p>🚀 Cargando eventos desde la NASA...</p>
+                </li>
+            </ul>
         </section>
 
         <section class="mapa">
             <h2>Mapa de Eventos</h2>
             <div class="controles-mapa">
-                <button id="btnCentrarMapa">Centrar Mapa</button>
+                <button id="btnCentrarMapa">🌍 Centrar Mapa</button>
                 <select id="selectTipoEvento">
                     <option value="">Todos los eventos</option>
-                    <option value="wildfire">Incendios</option>
-                    <option value="storm">Tormentas</option>
-                    <option value="flood">Inundaciones</option>
-                    <option value="earthquake">Terremotos</option>
-                    <option value="volcano">Volcanes</option>
+                    <!-- Las opciones se generan dinámicamente -->
                 </select>
             </div>
-            <div id="map"></div>
+            <div id="map">
+                <div class="mapa-cargando">
+                    <p>🛰️ Inicializando mapa...</p>
+                </div>
+            </div>
         </section>
     </main>
 
     <footer>
-        <p>Desarrollado con datos de NASA EONET 🚀 | © 2024</p>
+        <p>Desarrollado con datos de NASA EONET 🚀 | © 2024 | 
+           <small>Base de datos ultra-simple: 2 tablas + JWT stateless</small>
+        </p>
     </footer>
 
     <!-- Leaflet JavaScript -->
@@ -73,7 +80,7 @@
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" 
             crossorigin=""></script>
     
-    <!-- Nuestro script al final para asegurar que el DOM esté cargado -->
+    <!-- Nuestro script completo y simplificado -->
     <script src="./js/script.js"></script>
 </body>
 </html>
