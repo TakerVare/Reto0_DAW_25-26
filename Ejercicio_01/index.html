@@ -3,14 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EONET - Earth Observatory Natural Event Tracker</title>
+    <title>NASA EONET - Observatorio de Eventos</title>
     <script src="./js/script.js"></script>
     <link rel="stylesheet" href="./css/styles.css">
 </head>
 <body>
     <header>
-        <h1>EONET - Earth Observatory Natural Event Tracker</h1>
-    </header>
-    <main>
+    <h1>🌍 NASA EONET Tracker</h1>
+    <nav>
+      <ul>
+        <li><a href="#">Inicio</a></li>
+        <li><a href="#">Eventos</a></li>
+        <li><a href="#">Mapa</a></li>
+        <li><a href="#">Usuarios</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <section class="filtros">
+      <h2>Filtrar Eventos</h2>
+      <label for="fechaInicio">Desde:</label>
+      <input type="date" id="fechaInicio">
+      <label for="fechaFin">Hasta:</label>
+      <input type="date" id="fechaFin">
+      <button>Aplicar</button>
+    </section>
+
+    <section class="eventos">
+      <h2>Eventos Recientes</h2>
+      <ul id="listaEventos"></ul>
+    </section>
+
+    <section class="mapa">
+      <h2>Mapa de Eventos</h2>
+      <div id="map"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Desarrollado con datos de NASA EONET 🚀</p>
+  </footer>
 </body>
 </html>

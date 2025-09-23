@@ -89,8 +89,3 @@ Añade una propuesta concreta para minimizar el impacto ambiental, como un modo 
 
 Explica cómo analizarías la sostenibilidad del servicio a lo largo del tiempo, indicando qué indicadores elegirías, cómo los recopilarías y cómo presentarías las mejoras.
 
-
-
-
-
-
