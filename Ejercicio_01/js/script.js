@@ -20,6 +20,8 @@ L.marker([26.51, -80.43], {icon: incendioIcon})
   .bindPopup("<b>Incendio en Florida</b><br>Fuente: NASA EONET");
 
 
+
+  
 //Filtro por rangos de fechas
 async function cargarEventos() {
   let res = await fetch("https://eonet.gsfc.nasa.gov/api/v3/events");
