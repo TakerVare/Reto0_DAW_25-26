@@ -1,9 +1,12 @@
 // ===== CONFIGURACIÓN GLOBAL =====
 let map;
 let eventosData = [];
+let todoEventosData = []; // Almacena TODOS los eventos de la API
 let marcadores = [];
 let usuarioActual = null; // Se carga desde JWT en localStorage
 let favoritosUsuario = []; // Array de IDs de eventos favoritos
+let ubicacionUsuario = null; // {lat, lng} del usuario
+let radioProximidad = 1000; // Radio en km para filtrar eventos cercanos
 
 // Configuración de iconos basada en categorías reales de NASA EONET
 const configuracionEventos = {
@@ -50,10 +53,228 @@ document.addEventListener('DOMContentLoaded', function() {
     inicializarMapa();
     configurarEventosInterfaz();
     inicializarUsuario(); // Verificar JWT en localStorage
-    cargarEventosIniciales();
+    obtenerUbicacionUsuario(); // Obtener ubicación para filtrar eventos cercanos
     
     console.log('✅ Aplicación inicializada correctamente');
 });
+
+// ===== GESTIÓN DE UBICACIÓN Y PROXIMIDAD =====
+async function obtenerUbicacionUsuario() {
+    try {
+        mostrarEstadoCarga('Obteniendo tu ubicación para eventos cercanos...');
+        
+        // Verificar si la geolocalización está disponible
+        if (!navigator.geolocation) {
+            console.warn('⚠️ Geolocalización no disponible, cargando todos los eventos');
+            cargarEventosIniciales();
+            return;
+        }
+        
+        // Opciones para la geolocalización
+        const opciones = {
+            enableHighAccuracy: true,
+            timeout: 10000, // 10 segundos
+            maximumAge: 300000 // 5 minutos de cache
+        };
+        
+        // Obtener ubicación del usuario
+        navigator.geolocation.getCurrentPosition(
+            // Éxito
+            async (posicion) => {
+                ubicacionUsuario = {
+                    lat: posicion.coords.latitude,
+                    lng: posicion.coords.longitude
+                };
+                
+                console.log('✅ Ubicación obtenida:', ubicacionUsuario);
+                
+                // Centrar el mapa en la ubicación del usuario
+                if (map) {
+                    map.setView([ubicacionUsuario.lat, ubicacionUsuario.lng], 6);
+                    
+                    // Añadir marcador de ubicación del usuario
+                    L.marker([ubicacionUsuario.lat, ubicacionUsuario.lng], {
+                        icon: L.divIcon({
+                            html: `
+                                <div style="
+                                    background: #007bff;
+                                    border: 3px solid white;
+                                    border-radius: 50%;
+                                    width: 20px;
+                                    height: 20px;
+                                    box-shadow: 0 2px 10px rgba(0,123,255,0.5);
+                                    position: relative;
+                                "></div>
+                                <div style="
+                                    position: absolute;
+                                    top: 25px;
+                                    left: -30px;
+                                    background: rgba(0,123,255,0.9);
+                                    color: white;
+                                    padding: 2px 8px;
+                                    border-radius: 4px;
+                                    font-size: 12px;
+                                    white-space: nowrap;
+                                ">Tu ubicación</div>
+                            `,
+                            iconSize: [20, 20],
+                            iconAnchor: [10, 10]
+                        })
+                    }).addTo(map);
+                }
+                
+                // Cargar eventos cercanos
+                await cargarEventosCercanos();
+            },
+            // Error
+            (error) => {
+                let mensaje = 'No se pudo obtener tu ubicación';
+                
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        mensaje = 'Ubicación denegada por el usuario';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        mensaje = 'Información de ubicación no disponible';
+                        break;
+                    case error.TIMEOUT:
+                        mensaje = 'Timeout obteniendo ubicación';
+                        break;
+                }
+                
+                console.warn('⚠️', mensaje, '- Cargando todos los eventos');
+                cargarEventosIniciales();
+            },
+            opciones
+        );
+        
+    } catch (error) {
+        console.error('❌ Error en geolocalización:', error);
+        cargarEventosIniciales();
+    }
+}
+
+async function cargarEventosCercanos() {
+    try {
+        mostrarEstadoCarga('Buscando eventos cercanos a tu ubicación...');
+        
+        // Obtener todos los eventos de la API
+        const todosLosEventos = await obtenerEventosDeAPI();
+        
+        if (!todosLosEventos || todosLosEventos.length === 0) {
+            mostrarError('No se encontraron eventos o la API no responde.');
+            return;
+        }
+        
+        // Guardar todos los eventos para uso posterior
+        todoEventosData = todosLosEventos;
+        
+        // Filtrar eventos cercanos (dentro del radio especificado)
+        const eventosCercanos = filtrarEventosPorProximidad(todosLosEventos, ubicacionUsuario, radioProximidad);
+        
+        console.log(`📍 Encontrados ${eventosCercanos.length} eventos dentro de ${radioProximidad}km`);
+        
+        if (eventosCercanos.length === 0) {
+            // Si no hay eventos cercanos, mostrar los 20 más recientes
+            const eventosRecientes = todosLosEventos
+                .sort((a, b) => {
+                    const fechaA = a.geometry && a.geometry.length > 0 ? new Date(a.geometry[0].date) : new Date(0);
+                    const fechaB = b.geometry && b.geometry.length > 0 ? new Date(b.geometry[0].date) : new Date(0);
+                    return fechaB - fechaA;
+                })
+                .slice(0, 20);
+            
+            eventosData = eventosRecientes;
+            mostrarMensajeSinEventosCercanos();
+        } else {
+            eventosData = eventosCercanos;
+        }
+        
+        mostrarEventosEnMapa(eventosData);
+        mostrarEventosEnLista(eventosData);
+        actualizarContadorEventos(eventosData.length, todosLosEventos.length);
+        
+    } catch (error) {
+        console.error('❌ Error cargando eventos cercanos:', error);
+        cargarEventosIniciales(); // Fallback a la carga normal
+    }
+}
+
+function filtrarEventosPorProximidad(eventos, ubicacionUsuario, radioKm) {
+    if (!ubicacionUsuario) {
+        return eventos;
+    }
+    
+    return eventos.filter(evento => {
+        // Verificar que el evento tenga geometría válida
+        if (!evento.geometry || evento.geometry.length === 0) {
+            return false;
+        }
+        
+        // Usar la primera geometría del evento
+        const geometria = evento.geometry[0];
+        if (!geometria.coordinates || geometria.coordinates.length < 2) {
+            return false;
+        }
+        
+        const lat = parseFloat(geometria.coordinates[1]);
+        const lng = parseFloat(geometria.coordinates[0]);
+        
+        // Verificar coordenadas válidas
+        if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+            return false;
+        }
+        
+        // Calcular distancia
+        const distancia = calcularDistanciaKm(
+            ubicacionUsuario.lat, ubicacionUsuario.lng,
+            lat, lng
+        );
+        
+        return distancia <= radioKm;
+    });
+}
+
+function calcularDistanciaKm(lat1, lng1, lat2, lng2) {
+    // Fórmula de Haversine para calcular distancia entre dos puntos en la Tierra
+    const R = 6371; // Radio de la Tierra en km
+    
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    
+    const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLng/2) * Math.sin(dLng/2);
+    
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distancia = R * c; // Distancia en km
+    
+    return distancia;
+}
+
+function mostrarMensajeSinEventosCercanos() {
+    const contador = document.getElementById('contadorEventos');
+    if (contador) {
+        contador.innerHTML = `
+            <span>📍 No hay eventos dentro de ${radioProximidad}km de tu ubicación</span>
+            <br>
+            <small style="color: #666;">Mostrando los 20 eventos más recientes en su lugar</small>
+        `;
+    }
+}
+
+function cargarTodosLosEventos() {
+    if (todoEventosData && todoEventosData.length > 0) {
+        eventosData = todoEventosData;
+        mostrarEventosEnMapa(eventosData);
+        mostrarEventosEnLista(eventosData);
+        actualizarContadorEventos(eventosData.length);
+        console.log('✅ Mostrando todos los eventos globales');
+    } else {
+        cargarEventosIniciales();
+    }
+}
 
 // ===== GESTIÓN DE USUARIO SIMPLIFICADA (JWT SIN BD) =====
 async function inicializarUsuario() {
@@ -349,7 +570,11 @@ function configurarEventosInterfaz() {
     if (btnLimpiar) btnLimpiar.addEventListener('click', limpiarFiltros);
     
     const btnCentrar = document.getElementById('btnCentrarMapa');
-    if (btnCentrar) btnCentrar.addEventListener('click', centrarMapa);
+    if (btnCentrar) {
+        btnCentrar.addEventListener('click', centrarMapa);
+        // Actualizar texto del botón
+        btnCentrar.innerHTML = ubicacionUsuario ? '📍 Mi Ubicación' : '🌍 Centrar Mapa';
+    }
     
     const selectTipo = document.getElementById('selectTipoEvento');
     if (selectTipo) {
@@ -364,7 +589,21 @@ function configurarEventosInterfaz() {
     if (fechaInicio) fechaInicio.addEventListener('change', validarFechas);
     if (fechaFin) fechaFin.addEventListener('change', validarFechas);
     
+    // Agregar botón para ver todos los eventos
+    agregarBotonTodosEventos();
+    
     console.log('✅ Eventos de interfaz configurados');
+}
+
+function agregarBotonTodosEventos() {
+    const controlesMapa = document.querySelector('.controles-mapa');
+    if (controlesMapa && !document.getElementById('btnTodosEventos')) {
+        const btnTodos = document.createElement('button');
+        btnTodos.id = 'btnTodosEventos';
+        btnTodos.innerHTML = '🌍 Ver Todos los Eventos';
+        btnTodos.addEventListener('click', cargarTodosLosEventos);
+        controlesMapa.appendChild(btnTodos);
+    }
 }
 
 function actualizarOpcionesCategorias(selectElement) {
@@ -393,6 +632,7 @@ async function cargarEventosIniciales() {
         
         if (eventos && eventos.length > 0) {
             eventosData = eventos;
+            todoEventosData = eventos; // También guardamos todos para uso posterior
             mostrarEventosEnMapa(eventos);
             mostrarEventosEnLista(eventos);
             actualizarContadorEventos(eventos.length);
@@ -725,8 +965,13 @@ function limpiarMarcadores() {
 }
 
 function centrarMapa() {
-    map.setView([20, 0], 2);
-    console.log('✅ Mapa centrado');
+    if (ubicacionUsuario) {
+        map.setView([ubicacionUsuario.lat, ubicacionUsuario.lng], 6);
+        console.log('✅ Mapa centrado en tu ubicación');
+    } else {
+        map.setView([20, 0], 2);
+        console.log('✅ Mapa centrado globalmente');
+    }
 }
 
 function validarFechas() {
@@ -755,9 +1000,23 @@ function actualizarContadorEventos(mostrados, total = null) {
     const contador = document.getElementById('contadorEventos');
     if (contador) {
         const favoritosCount = eventosData.filter(e => favoritosUsuario.includes(e.id)).length;
-        const texto = total ? 
-            `📊 ${mostrados} de ${total} eventos ${favoritosCount > 0 ? `| ⭐ ${favoritosCount} favoritos` : ''}` : 
-            `📊 ${mostrados} eventos ${favoritosCount > 0 ? `| ⭐ ${favoritosCount} favoritos` : ''}`;
+        
+        let texto;
+        if (total && total > mostrados) {
+            // Mostrando filtro de todos los eventos disponibles
+            texto = `📊 ${mostrados} de ${total} eventos`;
+        } else if (ubicacionUsuario && todoEventosData.length > 0 && mostrados < todoEventosData.length) {
+            // Mostrando solo eventos cercanos
+            texto = `📍 ${mostrados} eventos cercanos de ${todoEventosData.length} totales`;
+        } else {
+            // Mostrando todos los disponibles
+            texto = `📊 ${mostrados} eventos`;
+        }
+        
+        if (favoritosCount > 0) {
+            texto += ` | ⭐ ${favoritosCount} favoritos`;
+        }
+        
         contador.innerHTML = `<span>${texto}</span>`;
     }
 }
@@ -787,6 +1046,7 @@ function mostrarError(mensaje) {
 // ===== FUNCIONES GLOBALES PARA HTML =====
 window.limpiarFiltros = limpiarFiltros;
 window.cargarEventosIniciales = cargarEventosIniciales;
+window.cargarTodosLosEventos = cargarTodosLosEventos;
 window.toggleFavorito = toggleFavorito;
 window.logout = logout;
 window.simularLogin = simularLogin; // Solo para desarrollo
@@ -794,11 +1054,20 @@ window.simularLogin = simularLogin; // Solo para desarrollo
 // ===== UTILIDADES PARA DESARROLLO =====
 // Función para probar la aplicación fácilmente
 console.log(`
-🚀 NASA EONET Tracker - Versión Ultra-Simplificada
+🚀 NASA EONET Tracker - Versión Ultra-Simplificada con Filtrado por Proximidad
+
+Nuevas características:
+📍 Carga inicial: Solo eventos dentro de 1000km de tu ubicación
+🌍 Botón "Ver Todos los Eventos" para cargar eventos globales
+📱 Solicita permiso de ubicación al cargar la página
 
 Para probar favoritos en desarrollo:
 1. simularLogin() - Simula un científico logueado
 2. logout() - Cierra sesión
+
+Para probar todas las funciones:
+1. cargarTodosLosEventos() - Carga todos los eventos mundiales
+2. Permitir ubicación cuando el navegador lo solicite
 
 Estructura de BD:
 - usuarios (2 tablas solamente)
@@ -806,6 +1075,7 @@ Estructura de BD:
 
 JWT: Autenticación stateless sin persistir sesiones
 API: Eventos siempre frescos desde NASA EONET
+Geolocalización: Filtrado automático por proximidad (1000km)
 `);
 
 // Auto-simular login en desarrollo (remover en producción)

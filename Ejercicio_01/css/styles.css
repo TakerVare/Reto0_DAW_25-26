@@ -776,3 +776,70 @@ footer p {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+/* ===== ESTILOS ADICIONALES PARA FILTRADO POR PROXIMIDAD ===== */
+
+.controles-mapa button {
+    padding: 0.5rem 1rem;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.3s;
+    margin-right: 0.5rem;
+}
+
+.controles-mapa button:hover {
+    background: #218838;
+}
+
+#btnTodosEventos {
+    background: #007bff !important;
+}
+
+#btnTodosEventos:hover {
+    background: #0056b3 !important;
+}
+
+.contador-eventos .proximidad {
+    color: #007bff;
+    font-weight: 600;
+}
+
+.contador-eventos .sin-cercanos {
+    color: #ffc107;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.contador-eventos .cargando {
+    color: #007bff;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.contador-eventos .error {
+    color: #dc3545;
+}
+
+.mensaje-ubicacion {
+    background: #e3f2fd;
+    border: 1px solid #2196f3;
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    color: #1565c0;
+    font-size: 0.9rem;
+}
+
+.mensaje-ubicacion.error {
+    background: #ffebee;
+    border-color: #f44336;
+    color: #c62828;
+}
+
+.mensaje-ubicacion.exito {
+    background: #e8f5e8;
+    border-color: #4caf50;
+    color: #2e7d32;
+}
