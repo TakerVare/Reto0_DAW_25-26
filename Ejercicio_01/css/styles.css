@@ -843,3 +843,332 @@ footer p {
     border-color: #4caf50;
     color: #2e7d32;
 }
+
+/* ===== ESTILOS ADICIONALES PARA VERSIÓN OPTIMIZADA ===== */
+
+/* Botones optimizados */
+.btn-optimizado {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    margin-right: 0.5rem;
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-optimizado:hover {
+    background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+}
+
+.btn-optimizado:active {
+    transform: translateY(0);
+}
+
+.btn-optimizado::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.btn-optimizado:hover::before {
+    left: 100%;
+}
+
+.btn-secundario-opt {
+    background: linear-gradient(135deg, #6c757d 0%, #495057 100%) !important;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    margin-right: 0.5rem;
+    border: 1px solid #495057;
+}
+
+.btn-secundario-opt:hover {
+    background: linear-gradient(135deg, #495057 0%, #343a40 100%) !important;
+    border-color: #343a40;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+}
+
+/* Mensajes de ubicación mejorados */
+.mensaje-ubicacion {
+    background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+    border: 1px solid #2196f3;
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 0.75rem 0;
+    color: #1565c0;
+    font-size: 0.95rem;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.1);
+    animation: slideIn 0.5s ease-out;
+}
+
+.mensaje-ubicacion small {
+    display: block;
+    margin-top: 0.5rem;
+    color: #666;
+    font-size: 0.85rem;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Indicadores de optimización */
+.contador-eventos .optimizado {
+    color: #28a745;
+    font-weight: 600;
+    position: relative;
+}
+
+.contador-eventos .optimizado::before {
+    content: '⚡';
+    margin-right: 0.25rem;
+}
+
+/* Efectos de carga optimizados */
+.cargando-optimizado {
+    color: #28a745;
+    font-weight: 600;
+    animation: pulseOptimizado 1.2s ease-in-out infinite;
+}
+
+@keyframes pulseOptimizado {
+    0%, 100% { 
+        opacity: 1; 
+        transform: scale(1);
+    }
+    50% { 
+        opacity: 0.7; 
+        transform: scale(0.98);
+    }
+}
+
+/* Marcadores de rendimiento */
+.performance-badge {
+    display: inline-block;
+    background: linear-gradient(45deg, #28a745, #20c997);
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: 0.5rem;
+    animation: bounce 2s ease-in-out infinite;
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+    }
+    40% {
+        transform: translateY(-3px);
+    }
+    60% {
+        transform: translateY(-2px);
+    }
+}
+
+/* Botones de controles del mapa reorganizados */
+.controles-mapa {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
+
+.controles-mapa button {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+/* Botón centrar mapa */
+.controles-mapa button:first-child {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    box-shadow: 0 2px 6px rgba(0, 123, 255, 0.3);
+}
+
+.controles-mapa button:first-child:hover {
+    background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0, 123, 255, 0.4);
+}
+
+/* Select de tipos de eventos */
+.controles-mapa select {
+    padding: 0.5rem 0.75rem;
+    border: 2px solid #dee2e6;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background: white;
+    transition: all 0.3s ease;
+    min-width: 180px;
+}
+
+.controles-mapa select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+/* Mejoras en responsive para botones optimizados */
+@media (max-width: 768px) {
+    .controles-mapa {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+    
+    .controles-mapa button,
+    .controles-mapa select {
+        width: 100%;
+        margin-right: 0;
+    }
+    
+    .btn-optimizado,
+    .btn-secundario-opt {
+        margin-bottom: 0.5rem;
+        margin-right: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .mensaje-ubicacion {
+        font-size: 0.9rem;
+        padding: 0.75rem;
+    }
+    
+    .btn-optimizado,
+    .btn-secundario-opt {
+        font-size: 0.85rem;
+        padding: 0.4rem 0.8rem;
+    }
+    
+    .performance-badge {
+        font-size: 0.7rem;
+        padding: 0.15rem 0.4rem;
+    }
+}
+
+/* Indicadores de cache */
+.cache-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #28a745;
+    margin-left: 0.5rem;
+    animation: pulse 2s infinite;
+}
+
+.cache-indicator.miss {
+    background: #ffc107;
+}
+
+/* Estados de carga específicos */
+.loading-eventos-activos {
+    background: linear-gradient(90deg, #e3f2fd, #f3e5f5, #e3f2fd);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Optimizaciones de hover para rendimiento */
+.evento-item {
+    will-change: transform;
+    backface-visibility: hidden;
+}
+
+.controles-mapa button {
+    will-change: transform;
+    backface-visibility: hidden;
+}
+
+/* Mejoras de accesibilidad */
+.btn-optimizado:focus,
+.btn-secundario-opt:focus {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+}
+
+/* Indicador de eventos limitados */
+.eventos-limitados {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    margin: 0.5rem 0;
+    color: #856404;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.eventos-limitados::before {
+    content: '⚡ ';
+    font-weight: bold;
+}
+
+/* Animación para botones de carga */
+.loading-button {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.loading-button::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}

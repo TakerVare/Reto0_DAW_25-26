@@ -8,6 +8,12 @@ let favoritosUsuario = []; // Array de IDs de eventos favoritos
 let ubicacionUsuario = null; // {lat, lng} del usuario
 let radioProximidad = 1000; // Radio en km para filtrar eventos cercanos
 
+// NUEVAS VARIABLES PARA OPTIMIZACIÓN
+let cacheEventos = new Map(); // Cache para evitar re-cargas
+let soloEventosActivos = true; // Filtrar solo eventos abiertos inicialmente
+let limiteEventosIniciales = 50; // Máximo de eventos a cargar inicialmente
+let debounceTimer = null; // Para debouncing de filtros
+
 // Configuración de iconos basada en categorías reales de NASA EONET
 const configuracionEventos = {
     // Categorías reales de la API NASA EONET
@@ -39,16 +45,18 @@ const API_ENDPOINTS = {
         obtener: (usuarioId) => `/api/usuarios/${usuarioId}/favoritos`,           // GET → Array de evento_ids
         toggle: (usuarioId) => `/api/usuarios/${usuarioId}/favoritos`             // POST/DELETE → Agregar/Eliminar
     },
-    // API NASA EONET (directo desde frontend)
+    // API NASA EONET (directo desde frontend) - OPTIMIZADA
     nasa: {
         eventos: 'https://eonet.gsfc.nasa.gov/api/v3/events',
+        eventosActivos: 'https://eonet.gsfc.nasa.gov/api/v3/events?status=open', // Solo eventos abiertos
+        eventosCerrados: 'https://eonet.gsfc.nasa.gov/api/v3/events?status=closed', // Solo eventos cerrados
         categorias: 'https://eonet.gsfc.nasa.gov/api/v3/categories'
     }
 };
 
 // ===== INICIALIZACIÓN =====
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Inicializando NASA EONET Tracker...');
+    console.log('🚀 Inicializando NASA EONET Tracker (Optimizado)...');
     
     inicializarMapa();
     configurarEventosInterfaz();
@@ -58,23 +66,23 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('✅ Aplicación inicializada correctamente');
 });
 
-// ===== GESTIÓN DE UBICACIÓN Y PROXIMIDAD =====
+// ===== GESTIÓN DE UBICACIÓN Y PROXIMIDAD OPTIMIZADA =====
 async function obtenerUbicacionUsuario() {
     try {
         mostrarEstadoCarga('Obteniendo tu ubicación para eventos cercanos...');
         
         // Verificar si la geolocalización está disponible
         if (!navigator.geolocation) {
-            console.warn('⚠️ Geolocalización no disponible, cargando todos los eventos');
-            cargarEventosIniciales();
+            console.warn('⚠️ Geolocalización no disponible, cargando eventos activos globales');
+            cargarEventosActivosIniciales();
             return;
         }
         
-        // Opciones para la geolocalización
+        // Opciones para la geolocalización (más agresivo para velocidad)
         const opciones = {
-            enableHighAccuracy: true,
-            timeout: 10000, // 10 segundos
-            maximumAge: 300000 // 5 minutos de cache
+            enableHighAccuracy: false, // Menos preciso pero más rápido
+            timeout: 5000, // 5 segundos en vez de 10
+            maximumAge: 600000 // 10 minutos de cache
         };
         
         // Obtener ubicación del usuario
@@ -91,40 +99,11 @@ async function obtenerUbicacionUsuario() {
                 // Centrar el mapa en la ubicación del usuario
                 if (map) {
                     map.setView([ubicacionUsuario.lat, ubicacionUsuario.lng], 6);
-                    
-                    // Añadir marcador de ubicación del usuario
-                    L.marker([ubicacionUsuario.lat, ubicacionUsuario.lng], {
-                        icon: L.divIcon({
-                            html: `
-                                <div style="
-                                    background: #007bff;
-                                    border: 3px solid white;
-                                    border-radius: 50%;
-                                    width: 20px;
-                                    height: 20px;
-                                    box-shadow: 0 2px 10px rgba(0,123,255,0.5);
-                                    position: relative;
-                                "></div>
-                                <div style="
-                                    position: absolute;
-                                    top: 25px;
-                                    left: -30px;
-                                    background: rgba(0,123,255,0.9);
-                                    color: white;
-                                    padding: 2px 8px;
-                                    border-radius: 4px;
-                                    font-size: 12px;
-                                    white-space: nowrap;
-                                ">Tu ubicación</div>
-                            `,
-                            iconSize: [20, 20],
-                            iconAnchor: [10, 10]
-                        })
-                    }).addTo(map);
+                    agregarMarcadorUsuario();
                 }
                 
-                // Cargar eventos cercanos
-                await cargarEventosCercanos();
+                // Cargar eventos cercanos Y ACTIVOS (doble filtro para máxima velocidad)
+                await cargarEventosCercanosActivos();
             },
             // Error
             (error) => {
@@ -142,41 +121,62 @@ async function obtenerUbicacionUsuario() {
                         break;
                 }
                 
-                console.warn('⚠️', mensaje, '- Cargando todos los eventos');
-                cargarEventosIniciales();
+                console.warn('⚠️', mensaje, '- Cargando eventos activos globales');
+                cargarEventosActivosIniciales();
             },
             opciones
         );
         
     } catch (error) {
         console.error('❌ Error en geolocalización:', error);
-        cargarEventosIniciales();
+        cargarEventosActivosIniciales();
     }
 }
 
-async function cargarEventosCercanos() {
+function agregarMarcadorUsuario() {
+    L.marker([ubicacionUsuario.lat, ubicacionUsuario.lng], {
+        icon: L.divIcon({
+            html: `
+                <div style="
+                    background: #007bff;
+                    border: 3px solid white;
+                    border-radius: 50%;
+                    width: 20px;
+                    height: 20px;
+                    box-shadow: 0 2px 10px rgba(0,123,255,0.5);
+                "></div>
+            `,
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+        })
+    }).addTo(map).bindPopup('📍 Tu ubicación');
+}
+
+async function cargarEventosCercanosActivos() {
     try {
-        mostrarEstadoCarga('Buscando eventos cercanos a tu ubicación...');
+        mostrarEstadoCarga('Buscando eventos activos cercanos...');
         
-        // Obtener todos los eventos de la API
-        const todosLosEventos = await obtenerEventosDeAPI();
+        // Obtener solo eventos ACTIVOS (mucho más rápido)
+        const eventosActivos = await obtenerEventosDeAPI(true, limiteEventosIniciales);
         
-        if (!todosLosEventos || todosLosEventos.length === 0) {
-            mostrarError('No se encontraron eventos o la API no responde.');
+        if (!eventosActivos || eventosActivos.length === 0) {
+            mostrarError('No se encontraron eventos activos o la API no responde.');
             return;
         }
         
-        // Guardar todos los eventos para uso posterior
-        todoEventosData = todosLosEventos;
+        console.log(`⚡ API optimizada: ${eventosActivos.length} eventos activos obtenidos`);
+        
+        // Guardar todos los eventos activos para uso posterior
+        todoEventosData = eventosActivos;
         
         // Filtrar eventos cercanos (dentro del radio especificado)
-        const eventosCercanos = filtrarEventosPorProximidad(todosLosEventos, ubicacionUsuario, radioProximidad);
+        const eventosCercanos = filtrarEventosPorProximidadOptimizado(eventosActivos, ubicacionUsuario, radioProximidad);
         
-        console.log(`📍 Encontrados ${eventosCercanos.length} eventos dentro de ${radioProximidad}km`);
+        console.log(`📍 Encontrados ${eventosCercanos.length} eventos activos dentro de ${radioProximidad}km`);
         
         if (eventosCercanos.length === 0) {
-            // Si no hay eventos cercanos, mostrar los 20 más recientes
-            const eventosRecientes = todosLosEventos
+            // Si no hay eventos cercanos, mostrar los más recientes activos
+            const eventosRecientes = eventosActivos
                 .sort((a, b) => {
                     const fechaA = a.geometry && a.geometry.length > 0 ? new Date(a.geometry[0].date) : new Date(0);
                     const fechaB = b.geometry && b.geometry.length > 0 ? new Date(b.geometry[0].date) : new Date(0);
@@ -190,55 +190,89 @@ async function cargarEventosCercanos() {
             eventosData = eventosCercanos;
         }
         
-        mostrarEventosEnMapa(eventosData);
+        mostrarEventosEnMapaOptimizado(eventosData);
         mostrarEventosEnLista(eventosData);
-        actualizarContadorEventos(eventosData.length, todosLosEventos.length);
+        actualizarContadorEventosOptimizado(eventosData.length, eventosActivos.length);
         
     } catch (error) {
-        console.error('❌ Error cargando eventos cercanos:', error);
-        cargarEventosIniciales(); // Fallback a la carga normal
+        console.error('❌ Error cargando eventos cercanos activos:', error);
+        cargarEventosActivosIniciales(); // Fallback a la carga normal
     }
 }
 
-function filtrarEventosPorProximidad(eventos, ubicacionUsuario, radioKm) {
+async function cargarEventosActivosIniciales() {
+    try {
+        mostrarEstadoCarga('Cargando eventos activos globales...');
+        
+        // Cargar solo eventos activos con límite (súper rápido)
+        const eventosActivos = await obtenerEventosDeAPI(true, limiteEventosIniciales);
+        
+        if (eventosActivos && eventosActivos.length > 0) {
+            eventosData = eventosActivos;
+            todoEventosData = eventosActivos;
+            
+            mostrarEventosEnMapaOptimizado(eventosActivos);
+            mostrarEventosEnLista(eventosActivos);
+            actualizarContadorEventosOptimizado(eventosActivos.length);
+            
+            console.log(`⚡ Carga inicial ultrarrápida: ${eventosActivos.length} eventos activos`);
+        } else {
+            mostrarError('No se encontraron eventos activos o la API no responde.');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error cargando eventos activos iniciales:', error);
+        mostrarError('Error al cargar los eventos activos. Verifica tu conexión a internet.');
+    }
+}
+
+function filtrarEventosPorProximidadOptimizado(eventos, ubicacionUsuario, radioKm) {
     if (!ubicacionUsuario) {
-        return eventos;
+        return eventos.slice(0, limiteEventosIniciales); // Limitar si no hay ubicación
     }
     
-    return eventos.filter(evento => {
-        // Verificar que el evento tenga geometría válida
-        if (!evento.geometry || evento.geometry.length === 0) {
-            return false;
+    const eventosValidos = [];
+    let contadorProcesados = 0;
+    
+    for (const evento of eventos) {
+        // Verificar que el evento tenga geometría válida (optimizado)
+        if (!evento.geometry?.[0]?.coordinates || evento.geometry[0].coordinates.length < 2) {
+            continue;
         }
         
-        // Usar la primera geometría del evento
         const geometria = evento.geometry[0];
-        if (!geometria.coordinates || geometria.coordinates.length < 2) {
-            return false;
-        }
-        
         const lat = parseFloat(geometria.coordinates[1]);
         const lng = parseFloat(geometria.coordinates[0]);
         
-        // Verificar coordenadas válidas
+        // Verificar coordenadas válidas (optimizado)
         if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-            return false;
+            continue;
         }
         
-        // Calcular distancia
-        const distancia = calcularDistanciaKm(
-            ubicacionUsuario.lat, ubicacionUsuario.lng,
-            lat, lng
-        );
+        // Calcular distancia usando cache
+        const cacheKey = `${ubicacionUsuario.lat},${ubicacionUsuario.lng}-${lat},${lng}`;
+        let distancia = cacheEventos.get(cacheKey);
         
-        return distancia <= radioKm;
-    });
+        if (distancia === undefined) {
+            distancia = calcularDistanciaKm(ubicacionUsuario.lat, ubicacionUsuario.lng, lat, lng);
+            cacheEventos.set(cacheKey, distancia);
+        }
+        
+        if (distancia <= radioKm) {
+            eventosValidos.push(evento);
+        }
+        
+        contadorProcesados++;
+        // Limitar procesamiento para evitar bloquear UI
+        if (contadorProcesados >= limiteEventosIniciales * 2) break;
+    }
+    
+    return eventosValidos;
 }
 
 function calcularDistanciaKm(lat1, lng1, lat2, lng2) {
-    // Fórmula de Haversine para calcular distancia entre dos puntos en la Tierra
+    // Fórmula de Haversine optimizada
     const R = 6371; // Radio de la Tierra en km
-    
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLng = (lng2 - lng1) * Math.PI / 180;
     
@@ -247,60 +281,269 @@ function calcularDistanciaKm(lat1, lng1, lat2, lng2) {
         Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
         Math.sin(dLng/2) * Math.sin(dLng/2);
     
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    const distancia = R * c; // Distancia en km
-    
-    return distancia;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
 function mostrarMensajeSinEventosCercanos() {
     const contador = document.getElementById('contadorEventos');
     if (contador) {
         contador.innerHTML = `
-            <span>📍 No hay eventos dentro de ${radioProximidad}km de tu ubicación</span>
-            <br>
-            <small style="color: #666;">Mostrando los 20 eventos más recientes en su lugar</small>
+            <div class="mensaje-ubicacion">
+                📍 No hay eventos activos dentro de ${radioProximidad}km
+                <br><small>Mostrando eventos activos más recientes</small>
+            </div>
         `;
     }
 }
 
-function cargarTodosLosEventos() {
-    if (todoEventosData && todoEventosData.length > 0) {
-        eventosData = todoEventosData;
-        mostrarEventosEnMapa(eventosData);
-        mostrarEventosEnLista(eventosData);
-        actualizarContadorEventos(eventosData.length);
-        console.log('✅ Mostrando todos los eventos globales');
-    } else {
-        cargarEventosIniciales();
+// ===== CARGA DE EVENTOS OPTIMIZADA =====
+async function obtenerEventosDeAPI(soloActivos = true, limite = null) {
+    try {
+        // Construir URL optimizada
+        let url = soloActivos ? API_ENDPOINTS.nasa.eventosActivos : API_ENDPOINTS.nasa.eventos;
+        
+        // Añadir límite si se especifica
+        if (limite) {
+            url += (soloActivos ? '&' : '?') + `limit=${limite}`;
+        }
+        
+        // Verificar cache primero
+        const cacheKey = `${url}-${Date.now() - (Date.now() % 300000)}`; // Cache de 5 minutos
+        if (cacheEventos.has(cacheKey)) {
+            console.log('⚡ Datos obtenidos del cache');
+            return cacheEventos.get(cacheKey);
+        }
+        
+        console.log(`🔄 Cargando desde API: ${url}`);
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (!data?.events) {
+            throw new Error('Respuesta de API inválida');
+        }
+        
+        // Guardar en cache
+        cacheEventos.set(cacheKey, data.events);
+        
+        console.log(`✅ ${data.events.length} eventos obtenidos de la API NASA ${soloActivos ? '(solo activos)' : ''}`);
+        return data.events;
+        
+    } catch (error) {
+        console.error('❌ Error en API NASA:', error);
+        throw new Error('No se pudieron obtener los datos de la NASA: ' + error.message);
     }
 }
 
-// ===== GESTIÓN DE USUARIO SIMPLIFICADA (JWT SIN BD) =====
+// ===== CARGAR MÁS EVENTOS (FUNCIONES ADICIONALES) =====
+async function cargarTodosLosEventosActivos() {
+    try {
+        mostrarEstadoCarga('Cargando todos los eventos activos...');
+        
+        const todosEventosActivos = await obtenerEventosDeAPI(true); // Sin límite
+        todoEventosData = todosEventosActivos;
+        eventosData = todosEventosActivos;
+        
+        mostrarEventosEnMapaOptimizado(eventosData);
+        mostrarEventosEnLista(eventosData);
+        actualizarContadorEventosOptimizado(eventosData.length);
+        
+        console.log(`✅ Cargados todos los eventos activos: ${eventosData.length}`);
+    } catch (error) {
+        console.error('❌ Error cargando todos los eventos activos:', error);
+        mostrarError('Error al cargar todos los eventos activos.');
+    }
+}
+
+async function cargarEventosCerrados() {
+    try {
+        mostrarEstadoCarga('Cargando eventos cerrados...');
+        
+        const eventosCerrados = await obtenerEventosDeAPI(false); // Todos los eventos
+        const soloEventosCerrados = eventosCerrados.filter(evento => evento.closed);
+        
+        // Combinar con eventos actuales
+        const eventosCompletos = [...eventosData, ...soloEventosCerrados];
+        todoEventosData = eventosCompletos;
+        eventosData = eventosCompletos;
+        
+        mostrarEventosEnMapaOptimizado(eventosData);
+        mostrarEventosEnLista(eventosData);
+        actualizarContadorEventosOptimizado(eventosData.length);
+        
+        console.log(`✅ Añadidos ${soloEventosCerrados.length} eventos cerrados`);
+    } catch (error) {
+        console.error('❌ Error cargando eventos cerrados:', error);
+        mostrarError('Error al cargar eventos cerrados.');
+    }
+}
+
+// ===== MOSTRAR EVENTOS EN MAPA OPTIMIZADO =====
+function mostrarEventosEnMapaOptimizado(eventos) {
+    // Limpiar marcadores existentes
+    limpiarMarcadores();
+    
+    // Crear marcadores solo para los primeros eventos (evitar sobrecarga)
+    const eventosParaMapa = eventos.slice(0, 100); // Máximo 100 marcadores
+    
+    eventosParaMapa.forEach((evento, index) => {
+        if (!evento.geometry?.[0]?.coordinates || evento.geometry[0].coordinates.length < 2) return;
+        
+        const geometria = evento.geometry[0];
+        const lat = parseFloat(geometria.coordinates[1]);
+        const lng = parseFloat(geometria.coordinates[0]);
+        
+        if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+            return;
+        }
+        
+        // Determinar tipo basado en categorías reales
+        const tipoEvento = evento.categories?.[0]?.id || 'default';
+        const esFavorito = favoritosUsuario.includes(evento.id);
+        const icono = crearIconoEvento(tipoEvento, !evento.closed, esFavorito);
+        
+        const marcador = L.marker([lat, lng], { icon: icono })
+            .addTo(map)
+            .bindPopup(crearContenidoPopup(evento), {
+                maxWidth: 350,
+                className: 'popup-evento'
+            });
+        
+        marcadores.push(marcador);
+        
+        // Mostrar popup solo en click, no en hover (optimización)
+        marcador.on('click', function() {
+            this.openPopup();
+        });
+    });
+    
+    if (eventos.length > eventosParaMapa.length) {
+        console.log(`⚡ Optimización: Mostrando ${eventosParaMapa.length} de ${eventos.length} eventos en mapa`);
+    } else {
+        console.log(`✅ Mostrados ${marcadores.length} eventos en el mapa`);
+    }
+}
+
+// ===== CONFIGURACIÓN DE EVENTOS DE INTERFAZ OPTIMIZADA =====
+function configurarEventosInterfaz() {
+    const btnAplicar = document.getElementById('btnAplicarFiltro');
+    if (btnAplicar) btnAplicar.addEventListener('click', aplicarFiltroFechasOptimizado);
+    
+    const btnLimpiar = document.getElementById('btnLimpiarFiltro');
+    if (btnLimpiar) btnLimpiar.addEventListener('click', limpiarFiltros);
+    
+    const btnCentrar = document.getElementById('btnCentrarMapa');
+    if (btnCentrar) {
+        btnCentrar.addEventListener('click', centrarMapa);
+    }
+    
+    const selectTipo = document.getElementById('selectTipoEvento');
+    if (selectTipo) {
+        selectTipo.addEventListener('change', filtrarPorTipoEventoOptimizado);
+        actualizarOpcionesCategorias(selectTipo);
+    }
+    
+    const fechaInicio = document.getElementById('fechaInicio');
+    const fechaFin = document.getElementById('fechaFin');
+    
+    if (fechaInicio) fechaInicio.addEventListener('change', validarFechas);
+    if (fechaFin) fechaFin.addEventListener('change', validarFechas);
+    
+    // Agregar botones optimizados
+    agregarBotonesOptimizados();
+    
+    console.log('✅ Eventos de interfaz configurados (optimizado)');
+}
+
+function agregarBotonesOptimizados() {
+    const controlesMapa = document.querySelector('.controles-mapa');
+    if (!controlesMapa) return;
+    
+    // Botón para cargar todos los eventos activos
+    if (!document.getElementById('btnTodosEventosActivos')) {
+        const btnTodosActivos = document.createElement('button');
+        btnTodosActivos.id = 'btnTodosEventosActivos';
+        btnTodosActivos.innerHTML = '⚡ Más Eventos Activos';
+        btnTodosActivos.classList.add('btn-optimizado');
+        btnTodosActivos.addEventListener('click', cargarTodosLosEventosActivos);
+        controlesMapa.appendChild(btnTodosActivos);
+    }
+    
+    // Botón para cargar eventos cerrados
+    if (!document.getElementById('btnEventosCerrados')) {
+        const btnCerrados = document.createElement('button');
+        btnCerrados.id = 'btnEventosCerrados';
+        btnCerrados.innerHTML = '🔍 Ver Eventos Cerrados';
+        btnCerrados.classList.add('btn-secundario-opt');
+        btnCerrados.addEventListener('click', cargarEventosCerrados);
+        controlesMapa.appendChild(btnCerrados);
+    }
+}
+
+// ===== FILTROS OPTIMIZADOS CON DEBOUNCING =====
+function aplicarFiltroFechasOptimizado() {
+    // Limpiar timer anterior
+    if (debounceTimer) {
+        clearTimeout(debounceTimer);
+    }
+    
+    // Debounce de 300ms para evitar múltiples ejecuciones
+    debounceTimer = setTimeout(() => {
+        aplicarFiltroFechas();
+    }, 300);
+}
+
+function filtrarPorTipoEventoOptimizado() {
+    // Limpiar timer anterior
+    if (debounceTimer) {
+        clearTimeout(debounceTimer);
+    }
+    
+    // Debounce de 200ms
+    debounceTimer = setTimeout(() => {
+        filtrarPorTipoEvento();
+    }, 200);
+}
+
+function actualizarContadorEventosOptimizado(mostrados, total = null) {
+    const contador = document.getElementById('contadorEventos');
+    if (contador) {
+        const favoritosCount = eventosData.filter(e => favoritosUsuario.includes(e.id)).length;
+        
+        let texto;
+        if (total && total > mostrados) {
+            texto = `📊 ${mostrados} de ${total} eventos`;
+        } else if (ubicacionUsuario && todoEventosData.length > 0 && mostrados < todoEventosData.length) {
+            texto = `📍 ${mostrados} eventos cercanos de ${todoEventosData.length} totales`;
+        } else {
+            texto = `⚡ ${mostrados} eventos ${soloEventosActivos ? 'activos' : ''}`;
+        }
+        
+        if (favoritosCount > 0) {
+            texto += ` | ⭐ ${favoritosCount} favoritos`;
+        }
+        
+        contador.innerHTML = `<span>${texto}</span>`;
+    }
+}
+
+// ===== GESTIÓN DE USUARIO Y FAVORITOS (SIN CAMBIOS) =====
 async function inicializarUsuario() {
-    // Verificar si hay JWT guardado en localStorage
     const token = localStorage.getItem('nasa_tracker_token');
     
     if (token && !esTokenExpirado(token)) {
-        // Decodificar JWT para obtener datos del usuario
         usuarioActual = decodificarJWT(token);
         console.log('✅ Usuario autenticado:', usuarioActual.email);
-        
-        // Cargar favoritos del usuario
         await cargarFavoritosUsuario();
-        
-        // Actualizar interfaz
         actualizarInterfazUsuario();
     } else {
-        // No hay usuario autenticado
         usuarioActual = null;
         favoritosUsuario = [];
-        
-        // Limpiar token expirado si existe
-        if (token) {
-            localStorage.removeItem('nasa_tracker_token');
-        }
-        
+        if (token) localStorage.removeItem('nasa_tracker_token');
         console.log('ℹ️ Usuario no autenticado');
         mostrarFormularioLogin();
     }
@@ -308,7 +551,6 @@ async function inicializarUsuario() {
 
 function decodificarJWT(token) {
     try {
-        // Decodificar payload del JWT (parte central)
         const payload = JSON.parse(atob(token.split('.')[1]));
         return {
             id: payload.sub,
@@ -328,7 +570,7 @@ function esTokenExpirado(token) {
         const ahora = Math.floor(Date.now() / 1000);
         return payload.exp < ahora;
     } catch {
-        return true; // Si no se puede decodificar, consideramos expirado
+        return true;
     }
 }
 
@@ -337,8 +579,6 @@ async function cargarFavoritosUsuario() {
     
     try {
         const token = localStorage.getItem('nasa_tracker_token');
-        
-        // TODO: Reemplazar con llamada real al backend Java
         const response = await fetch(API_ENDPOINTS.favoritos.obtener(usuarioActual.id), {
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -356,22 +596,15 @@ async function cargarFavoritosUsuario() {
         console.log('✅ Favoritos del usuario cargados:', favoritosUsuario);
     } catch (error) {
         console.warn('⚠️ Error cargando favoritos (usando mock):', error);
-        
-        // Mock para desarrollo - Simular algunos favoritos
         favoritosUsuario = ['EONET_15547', 'EONET_15545'];
     }
 }
 
 function actualizarInterfazUsuario() {
     if (usuarioActual) {
-        // Agregar info del usuario al header
         const nav = document.querySelector('nav ul');
-        
-        // Eliminar info previa si existe
         const userInfoExistente = nav.querySelector('.user-info-container');
-        if (userInfoExistente) {
-            userInfoExistente.remove();
-        }
+        if (userInfoExistente) userInfoExistente.remove();
         
         const userContainer = document.createElement('li');
         userContainer.className = 'user-info-container';
@@ -387,14 +620,10 @@ function actualizarInterfazUsuario() {
 }
 
 function mostrarFormularioLogin() {
-    // Opcional: Mostrar formulario de login en la interfaz
-    // Por ahora solo mostramos en consola
     console.log('💡 Para probar favoritos, simular login con: simularLogin()');
 }
 
-// Función de utilidad para pruebas
 function simularLogin() {
-    // Simular usuario logueado para desarrollo
     usuarioActual = {
         id: 2,
         nombre: "Dr. María García",
@@ -402,48 +631,23 @@ function simularLogin() {
         rol: "cientifico"
     };
     
-    // Simular token JWT (solo para desarrollo)
-    const mockToken = btoa(JSON.stringify({
-        header: {},
-        payload: {
-            sub: usuarioActual.id,
-            email: usuarioActual.email,
-            nombre: usuarioActual.nombre,
-            rol: usuarioActual.rol,
-            exp: Math.floor(Date.now() / 1000) + 3600 // 1 hora
-        },
-        signature: 'mock'
-    }));
-    
     localStorage.setItem('nasa_tracker_token', `header.${btoa(JSON.stringify(usuarioActual))}.signature`);
-    
     cargarFavoritosUsuario();
     actualizarInterfazUsuario();
-    
     console.log('✅ Login simulado exitoso');
 }
 
 function logout() {
-    // Limpiar datos de usuario
     usuarioActual = null;
     favoritosUsuario = [];
-    
-    // Limpiar token JWT
     localStorage.removeItem('nasa_tracker_token');
     
-    // Actualizar interfaz
     const userContainer = document.querySelector('.user-info-container');
-    if (userContainer) {
-        userContainer.remove();
-    }
-    
-    // Actualizar iconos de favoritos
+    if (userContainer) userContainer.remove();
     actualizarIconosFavoritos();
-    
     console.log('👋 Sesión cerrada');
 }
 
-// ===== GESTIÓN DE FAVORITOS SIMPLIFICADA =====
 async function toggleFavorito(eventoId, titulo) {
     if (!usuarioActual) {
         alert('Debes iniciar sesión para marcar favoritos');
@@ -464,18 +668,16 @@ async function toggleFavorito(eventoId, titulo) {
             console.log(`⭐ ${titulo} agregado a favoritos`);
         }
         
-        // Actualizar interfaz inmediatamente
         actualizarIconosFavoritos();
-        actualizarContadorEventos(eventosData.length);
+        actualizarContadorEventosOptimizado(eventosData.length);
         
-        // Re-renderizar eventos para mostrar cambios
         const eventosActuales = document.getElementById('selectTipoEvento').value 
             ? eventosData.filter(evento => 
                 evento.categories && evento.categories.some(cat => cat.id === document.getElementById('selectTipoEvento').value)
             )
             : eventosData;
         
-        mostrarEventosEnMapa(eventosActuales);
+        mostrarEventosEnMapaOptimizado(eventosActuales);
         mostrarEventosEnLista(eventosActuales);
         
     } catch (error) {
@@ -488,7 +690,6 @@ async function agregarFavorito(eventoId) {
     const token = localStorage.getItem('nasa_tracker_token');
     
     try {
-        // TODO: Implementar llamada real al backend Java
         const response = await fetch(API_ENDPOINTS.favoritos.toggle(usuarioActual.id), {
             method: 'POST',
             headers: {
@@ -507,7 +708,6 @@ async function agregarFavorito(eventoId) {
         
     } catch (error) {
         console.warn('⚠️ Error en API, usando simulación:', error);
-        // Simulación para desarrollo
         await new Promise(resolve => setTimeout(resolve, 200));
     }
 }
@@ -516,7 +716,6 @@ async function eliminarFavorito(eventoId) {
     const token = localStorage.getItem('nasa_tracker_token');
     
     try {
-        // TODO: Implementar llamada real al backend Java
         const response = await fetch(`${API_ENDPOINTS.favoritos.toggle(usuarioActual.id)}/${eventoId}`, {
             method: 'DELETE',
             headers: {
@@ -532,18 +731,15 @@ async function eliminarFavorito(eventoId) {
         
     } catch (error) {
         console.warn('⚠️ Error en API, usando simulación:', error);
-        // Simulación para desarrollo
         await new Promise(resolve => setTimeout(resolve, 200));
     }
 }
 
 function actualizarIconosFavoritos() {
-    // Los marcadores se actualizarán cuando se re-rendericen
-    // Los popups se actualizarán cuando se abran
     console.log('🔄 Iconos de favoritos actualizados');
 }
 
-// ===== INICIALIZACIÓN DEL MAPA =====
+// ===== FUNCIONES HEREDADAS (SIN CAMBIOS IMPORTANTES) =====
 function inicializarMapa() {
     try {
         map = L.map('map').setView([20, 0], 2);
@@ -561,58 +757,11 @@ function inicializarMapa() {
     }
 }
 
-// ===== CONFIGURACIÓN DE EVENTOS DE INTERFAZ =====
-function configurarEventosInterfaz() {
-    const btnAplicar = document.getElementById('btnAplicarFiltro');
-    if (btnAplicar) btnAplicar.addEventListener('click', aplicarFiltroFechas);
-    
-    const btnLimpiar = document.getElementById('btnLimpiarFiltro');
-    if (btnLimpiar) btnLimpiar.addEventListener('click', limpiarFiltros);
-    
-    const btnCentrar = document.getElementById('btnCentrarMapa');
-    if (btnCentrar) {
-        btnCentrar.addEventListener('click', centrarMapa);
-        // Actualizar texto del botón
-        btnCentrar.innerHTML = ubicacionUsuario ? '📍 Mi Ubicación' : '🌍 Centrar Mapa';
-    }
-    
-    const selectTipo = document.getElementById('selectTipoEvento');
-    if (selectTipo) {
-        selectTipo.addEventListener('change', filtrarPorTipoEvento);
-        // Actualizar opciones con categorías reales
-        actualizarOpcionesCategorias(selectTipo);
-    }
-    
-    const fechaInicio = document.getElementById('fechaInicio');
-    const fechaFin = document.getElementById('fechaFin');
-    
-    if (fechaInicio) fechaInicio.addEventListener('change', validarFechas);
-    if (fechaFin) fechaFin.addEventListener('change', validarFechas);
-    
-    // Agregar botón para ver todos los eventos
-    agregarBotonTodosEventos();
-    
-    console.log('✅ Eventos de interfaz configurados');
-}
-
-function agregarBotonTodosEventos() {
-    const controlesMapa = document.querySelector('.controles-mapa');
-    if (controlesMapa && !document.getElementById('btnTodosEventos')) {
-        const btnTodos = document.createElement('button');
-        btnTodos.id = 'btnTodosEventos';
-        btnTodos.innerHTML = '🌍 Ver Todos los Eventos';
-        btnTodos.addEventListener('click', cargarTodosLosEventos);
-        controlesMapa.appendChild(btnTodos);
-    }
-}
-
 function actualizarOpcionesCategorias(selectElement) {
-    // Limpiar opciones existentes (excepto "Todos")
     const primeraOpcion = selectElement.firstElementChild;
     selectElement.innerHTML = '';
     selectElement.appendChild(primeraOpcion);
     
-    // Agregar opciones basadas en categorías reales de NASA
     Object.entries(configuracionEventos).forEach(([id, config]) => {
         if (id !== 'default') {
             const option = document.createElement('option');
@@ -623,54 +772,6 @@ function actualizarOpcionesCategorias(selectElement) {
     });
 }
 
-// ===== CARGA DE EVENTOS DESDE API NASA =====
-async function cargarEventosIniciales() {
-    try {
-        mostrarEstadoCarga('Cargando eventos de la NASA...');
-        
-        const eventos = await obtenerEventosDeAPI();
-        
-        if (eventos && eventos.length > 0) {
-            eventosData = eventos;
-            todoEventosData = eventos; // También guardamos todos para uso posterior
-            mostrarEventosEnMapa(eventos);
-            mostrarEventosEnLista(eventos);
-            actualizarContadorEventos(eventos.length);
-        } else {
-            mostrarError('No se encontraron eventos o la API no responde.');
-        }
-        
-    } catch (error) {
-        console.error('❌ Error cargando eventos:', error);
-        mostrarError('Error al cargar los eventos. Verifica tu conexión a internet.');
-    }
-}
-
-async function obtenerEventosDeAPI() {
-    try {
-        // TODO: Puede usar proxy Java o directo a NASA
-        const response = await fetch(API_ENDPOINTS.nasa.eventos);
-        
-        if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        
-        if (!data || !data.events) {
-            throw new Error('Respuesta de API inválida');
-        }
-        
-        console.log(`✅ Cargados ${data.events.length} eventos de la API NASA`);
-        return data.events;
-        
-    } catch (error) {
-        console.error('❌ Error en API NASA:', error);
-        throw new Error('No se pudieron obtener los datos de la NASA: ' + error.message);
-    }
-}
-
-// ===== CREACIÓN DE ICONOS CON FAVORITOS =====
 function crearIconoEvento(tipoEvento, esAbierto = true, esFavorito = false) {
     const config = configuracionEventos[tipoEvento] || configuracionEventos.default;
     const opacidad = esAbierto ? 1 : 0.6;
@@ -706,52 +807,6 @@ function crearIconoEvento(tipoEvento, esAbierto = true, esFavorito = false) {
     });
 }
 
-// ===== MOSTRAR EVENTOS EN MAPA =====
-function mostrarEventosEnMapa(eventos) {
-    limpiarMarcadores();
-    
-    eventos.forEach((evento, index) => {
-        if (!evento.geometry || evento.geometry.length === 0) return;
-        
-        const geometria = evento.geometry[0];
-        if (!geometria.coordinates || geometria.coordinates.length < 2) return;
-        
-        const lat = parseFloat(geometria.coordinates[1]);
-        const lng = parseFloat(geometria.coordinates[0]);
-        
-        if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-            console.warn(`Coordenadas inválidas para evento ${evento.id}:`, lat, lng);
-            return;
-        }
-        
-        // Determinar tipo basado en categorías reales
-        const tipoEvento = evento.categories && evento.categories.length > 0 
-            ? evento.categories[0].id 
-            : 'default';
-        
-        const esFavorito = favoritosUsuario.includes(evento.id);
-        const icono = crearIconoEvento(tipoEvento, !evento.closed, esFavorito);
-        
-        const popupContent = crearContenidoPopup(evento);
-        
-        const marcador = L.marker([lat, lng], { icon: icono })
-            .addTo(map)
-            .bindPopup(popupContent, {
-                maxWidth: 350,
-                className: 'popup-evento'
-            });
-        
-        marcadores.push(marcador);
-        
-        marcador.on('mouseover', function() {
-            this.openPopup();
-        });
-    });
-    
-    console.log(`✅ Mostrados ${marcadores.length} eventos en el mapa`);
-}
-
-// ===== CREAR POPUP CON FAVORITOS =====
 function crearContenidoPopup(evento) {
     const categoria = evento.categories && evento.categories.length > 0 
         ? evento.categories[0] 
@@ -768,7 +823,6 @@ function crearContenidoPopup(evento) {
     
     const esFavorito = favoritosUsuario.includes(evento.id);
     const iconoFavorito = esFavorito ? '⭐' : '☆';
-    const textoFavorito = esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos';
     
     return `
         <div class="popup-contenido">
@@ -825,7 +879,6 @@ function crearContenidoPopup(evento) {
     `;
 }
 
-// ===== FILTROS =====
 function aplicarFiltroFechas() {
     const fechaInicio = document.getElementById('fechaInicio').value;
     const fechaFin = document.getElementById('fechaFin').value;
@@ -852,9 +905,9 @@ function aplicarFiltroFechas() {
         });
     });
     
-    mostrarEventosEnMapa(eventosFiltrados);
+    mostrarEventosEnMapaOptimizado(eventosFiltrados);
     mostrarEventosEnLista(eventosFiltrados);
-    actualizarContadorEventos(eventosFiltrados.length, eventosData.length);
+    actualizarContadorEventosOptimizado(eventosFiltrados.length, eventosData.length);
 }
 
 function limpiarFiltros() {
@@ -862,18 +915,18 @@ function limpiarFiltros() {
     document.getElementById('fechaFin').value = '';
     document.getElementById('selectTipoEvento').value = '';
     
-    mostrarEventosEnMapa(eventosData);
+    mostrarEventosEnMapaOptimizado(eventosData);
     mostrarEventosEnLista(eventosData);
-    actualizarContadorEventos(eventosData.length);
+    actualizarContadorEventosOptimizado(eventosData.length);
 }
 
 function filtrarPorTipoEvento() {
     const tipoSeleccionado = document.getElementById('selectTipoEvento').value;
     
     if (!tipoSeleccionado) {
-        mostrarEventosEnMapa(eventosData);
+        mostrarEventosEnMapaOptimizado(eventosData);
         mostrarEventosEnLista(eventosData);
-        actualizarContadorEventos(eventosData.length);
+        actualizarContadorEventosOptimizado(eventosData.length);
         return;
     }
     
@@ -881,12 +934,11 @@ function filtrarPorTipoEvento() {
         return evento.categories && evento.categories.some(cat => cat.id === tipoSeleccionado);
     });
     
-    mostrarEventosEnMapa(eventosFiltrados);
+    mostrarEventosEnMapaOptimizado(eventosFiltrados);
     mostrarEventosEnLista(eventosFiltrados);
-    actualizarContadorEventos(eventosFiltrados.length, eventosData.length);
+    actualizarContadorEventosOptimizado(eventosFiltrados.length, eventosData.length);
 }
 
-// ===== MOSTRAR EVENTOS EN LISTA CON FAVORITOS =====
 function mostrarEventosEnLista(eventos) {
     const lista = document.getElementById('listaEventos');
     if (!lista) return;
@@ -940,7 +992,6 @@ function mostrarEventosEnLista(eventos) {
         `;
         
         li.addEventListener('click', (e) => {
-            // No navegar si se hizo clic en el botón de favorito
             if (e.target.classList.contains('btn-favorito-lista')) return;
             
             if (evento.geometry && evento.geometry.length > 0) {
@@ -948,7 +999,7 @@ function mostrarEventosEnLista(eventos) {
                 const lng = parseFloat(evento.geometry[0].coordinates[0]);
                 map.setView([lat, lng], 8);
                 
-                if (marcadores[index]) {
+                if (marcadores[index] && index < 100) { // Verificar que el marcador existe
                     marcadores[index].openPopup();
                 }
             }
@@ -958,7 +1009,6 @@ function mostrarEventosEnLista(eventos) {
     });
 }
 
-// ===== UTILIDADES =====
 function limpiarMarcadores() {
     marcadores.forEach(marcador => map.removeLayer(marcador));
     marcadores = [];
@@ -996,31 +1046,6 @@ function mostrarEstadoCarga(mensaje) {
     }
 }
 
-function actualizarContadorEventos(mostrados, total = null) {
-    const contador = document.getElementById('contadorEventos');
-    if (contador) {
-        const favoritosCount = eventosData.filter(e => favoritosUsuario.includes(e.id)).length;
-        
-        let texto;
-        if (total && total > mostrados) {
-            // Mostrando filtro de todos los eventos disponibles
-            texto = `📊 ${mostrados} de ${total} eventos`;
-        } else if (ubicacionUsuario && todoEventosData.length > 0 && mostrados < todoEventosData.length) {
-            // Mostrando solo eventos cercanos
-            texto = `📍 ${mostrados} eventos cercanos de ${todoEventosData.length} totales`;
-        } else {
-            // Mostrando todos los disponibles
-            texto = `📊 ${mostrados} eventos`;
-        }
-        
-        if (favoritosCount > 0) {
-            texto += ` | ⭐ ${favoritosCount} favoritos`;
-        }
-        
-        contador.innerHTML = `<span>${texto}</span>`;
-    }
-}
-
 function mostrarError(mensaje) {
     const lista = document.getElementById('listaEventos');
     const contador = document.getElementById('contadorEventos');
@@ -1029,7 +1054,7 @@ function mostrarError(mensaje) {
         lista.innerHTML = `
             <li class="error-mensaje">
                 <p>❌ ${mensaje}</p>
-                <button onclick="cargarEventosIniciales()" class="btn-reintentar">
+                <button onclick="cargarEventosActivosIniciales()" class="btn-reintentar">
                     🔄 Reintentar
                 </button>
             </li>
@@ -1045,46 +1070,49 @@ function mostrarError(mensaje) {
 
 // ===== FUNCIONES GLOBALES PARA HTML =====
 window.limpiarFiltros = limpiarFiltros;
-window.cargarEventosIniciales = cargarEventosIniciales;
-window.cargarTodosLosEventos = cargarTodosLosEventos;
+window.cargarEventosActivosIniciales = cargarEventosActivosIniciales;
+window.cargarTodosLosEventosActivos = cargarTodosLosEventosActivos;
+window.cargarEventosCerrados = cargarEventosCerrados;
 window.toggleFavorito = toggleFavorito;
 window.logout = logout;
 window.simularLogin = simularLogin; // Solo para desarrollo
 
 // ===== UTILIDADES PARA DESARROLLO =====
-// Función para probar la aplicación fácilmente
 console.log(`
-🚀 NASA EONET Tracker - Versión Ultra-Simplificada con Filtrado por Proximidad
+🚀 NASA EONET Tracker - Versión ULTRA-OPTIMIZADA
 
-Nuevas características:
-📍 Carga inicial: Solo eventos dentro de 1000km de tu ubicación
-🌍 Botón "Ver Todos los Eventos" para cargar eventos globales
-📱 Solicita permiso de ubicación al cargar la página
+⚡ NUEVAS OPTIMIZACIONES:
+📍 Carga inicial: Solo eventos ACTIVOS + filtro de ubicación
+🎯 Límite inteligente: Máximo 50 eventos iniciales
+💾 Cache avanzado: Evita recálculos de distancias
+🗺️ Mapa optimizado: Máximo 100 marcadores simultáneos
+⏱️ Debouncing: Filtros sin lag
+🔄 Botones adicionales: "Más Eventos Activos" y "Ver Eventos Cerrados"
 
-Para probar favoritos en desarrollo:
+Para probar favoritos:
 1. simularLogin() - Simula un científico logueado
 2. logout() - Cierra sesión
 
-Para probar todas las funciones:
-1. cargarTodosLosEventos() - Carga todos los eventos mundiales
-2. Permitir ubicación cuando el navegador lo solicite
+Para cargar más contenido:
+1. cargarTodosLosEventosActivos() - Todos los eventos activos
+2. cargarEventosCerrados() - Añadir eventos cerrados
 
-Estructura de BD:
-- usuarios (2 tablas solamente)
-- usuario_favoritos (solo IDs de eventos NASA)
-
-JWT: Autenticación stateless sin persistir sesiones
-API: Eventos siempre frescos desde NASA EONET
-Geolocalización: Filtrado automático por proximidad (1000km)
+Optimizaciones implementadas:
+✅ Solo eventos activos inicialmente (status=open)
+✅ Límite de 50 eventos en carga inicial
+✅ Cache de distancias para evitar recálculos
+✅ Máximo 100 marcadores en mapa
+✅ Debouncing en filtros (300ms)
+✅ Geolocalización más rápida
+✅ URLs optimizadas de API NASA
 `);
 
 // Auto-simular login en desarrollo (remover en producción)
 if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    // Solo para desarrollo local
     setTimeout(() => {
         if (!usuarioActual) {
             console.log('🔧 Auto-simulando login para desarrollo...');
             simularLogin();
         }
-    }, 2000);
+    }, 1000); // Reducido a 1 segundo
 }
