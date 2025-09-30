@@ -12,8 +12,104 @@
     
     <!-- CSS personalizado -->
     <link rel="stylesheet" href="./css/styles.css">
+    <link rel="stylesheet" href="./css/auth.css">
 </head>
 <body>
+    <!-- Modal de Autenticación -->
+    <div id="modalAuth" class="modal-auth">
+        <div class="modal-auth-contenido">
+            <button class="modal-close" onclick="cerrarModalAuth()">&times;</button>
+            
+            <!-- Pestañas Login/Registro -->
+            <div class="auth-tabs">
+                <button class="auth-tab active" onclick="cambiarTab('login')">Iniciar Sesión</button>
+                <button class="auth-tab" onclick="cambiarTab('registro')">Registrarse</button>
+            </div>
+
+            <!-- Formulario de Login -->
+            <div id="formLogin" class="auth-form active">
+                <h2>🚀 Bienvenido a NASA EONET Tracker</h2>
+                <p class="auth-descripcion">Inicia sesión para guardar tus eventos favoritos</p>
+                
+                <form onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label for="loginEmail">📧 Email</label>
+                        <input type="email" id="loginEmail" required placeholder="usuario@ejemplo.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="loginPassword">🔒 Contraseña</label>
+                        <input type="password" id="loginPassword" required placeholder="Tu contraseña">
+                    </div>
+                    
+                    <button type="submit" class="btn-auth">Iniciar Sesión</button>
+                </form>
+
+                <div class="auth-info">
+                    <p><strong>👥 Usuarios de prueba disponibles:</strong></p>
+                    <div class="usuarios-prueba">
+                        <div class="usuario-prueba">
+                            <strong>Admin NASA</strong><br>
+                            📧 admin@nasa.com<br>
+                            🔑 admin123
+                        </div>
+                        <div class="usuario-prueba">
+                            <strong>Dr. María García (Científica)</strong><br>
+                            📧 maria@cientifico.es<br>
+                            🔑 ciencia123
+                        </div>
+                        <div class="usuario-prueba">
+                            <strong>Juan Ciudadano</strong><br>
+                            📧 juan@ciudadano.es<br>
+                            🔑 ciudadano123
+                        </div>
+                        <div class="usuario-prueba">
+                            <strong>Ana Investigadora</strong><br>
+                            📧 ana@universidad.es<br>
+                            🔑 investiga123
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulario de Registro -->
+            <div id="formRegistro" class="auth-form">
+                <h2>🌟 Crear Nueva Cuenta</h2>
+                <p class="auth-descripcion">Únete a la comunidad de observadores de eventos naturales</p>
+                
+                <form onsubmit="handleRegistro(event)">
+                    <div class="form-group">
+                        <label for="regNombre">👤 Nombre Completo</label>
+                        <input type="text" id="regNombre" required placeholder="Tu nombre completo">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="regEmail">📧 Email</label>
+                        <input type="email" id="regEmail" required placeholder="tu@email.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="regPassword">🔒 Contraseña</label>
+                        <input type="password" id="regPassword" required placeholder="Mínimo 6 caracteres" minlength="6">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="regRol">🎭 Tipo de Usuario</label>
+                        <select id="regRol" required>
+                            <option value="ciudadano">👨‍👩‍👧‍👦 Ciudadano (Interesado general)</option>
+                            <option value="cientifico">🔬 Científico/Investigador</option>
+                            <option value="admin">👑 Administrador</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn-auth">Crear Cuenta</button>
+                </form>
+
+                <p class="auth-note">💡 En esta versión de prueba, los usuarios se guardan localmente en tu navegador</p>
+            </div>
+        </div>
+    </div>
+
     <header>
         <h1>🌍 NASA EONET Tracker</h1>
         <nav>
@@ -21,7 +117,6 @@
                 <li><a href="#" id="nav-inicio">Inicio</a></li>
                 <li><a href="#" id="nav-eventos">Eventos</a></li>
                 <li><a href="#" id="nav-mapa">Mapa</a></li>
-                <li><a href="#" id="nav-usuarios">Usuarios</a></li>
                 <!-- El info del usuario se añade dinámicamente aquí -->
             </ul>
         </nav>
@@ -58,7 +153,6 @@
                 <button id="btnCentrarMapa">🌍 Centrar Mapa</button>
                 <select id="selectTipoEvento">
                     <option value="">Todos los eventos</option>
-                    <!-- Las opciones se generan dinámicamente -->
                 </select>
             </div>
             <div id="map">
@@ -71,7 +165,7 @@
 
     <footer>
         <p>Desarrollado con datos de NASA EONET 🚀 | © 2024 | 
-           <small>Base de datos ultra-simple: 2 tablas + JWT stateless</small>
+           <small>Sistema de autenticación con usuarios hardcodeados para pruebas</small>
         </p>
     </footer>
 
@@ -80,7 +174,8 @@
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" 
             crossorigin=""></script>
     
-    <!-- Nuestro script completo y simplificado -->
+    <!-- Nuestro script con sistema de autenticación -->
+    <script src="./js/auth.js"></script>
     <script src="./js/script.js"></script>
 </body>
 </html>

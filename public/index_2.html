@@ -21,5 +21,19 @@
       })
       .catch(err => console.error(err));
   </script>
+
+  <script>
+    fetch("http://localhost:5011/api/eventos/1")
+      .then(res => res.json())
+      .then(data => {
+        const lista = document.getElementById("lista");
+        data.forEach(p => {
+          const li = document.createElement("li");
+          li.textContent = `${p.nombre} - ${p.precio}€`;
+          lista.appendChild(li);
+        });
+      })
+      .catch(err => console.error(err));
+  </script>
 </body>
 </html>
