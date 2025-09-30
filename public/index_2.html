@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Frontend JS</title>
+</head>
+<body>
+  <h1>Productos</h1>
+  <ul id="lista"></ul>
+
+  <script>
+    fetch("http://localhost:5011/api/eventos")
+      .then(res => res.json())
+      .then(data => {
+        const lista = document.getElementById("lista");
+        data.forEach(p => {
+          const li = document.createElement("li");
+          li.textContent = `${p.nombre} - ${p.precio}€`;
+          lista.appendChild(li);
+        });
+      })
+      .catch(err => console.error(err));
+  </script>
+</body>
+</html>
