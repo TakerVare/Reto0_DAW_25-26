@@ -226,7 +226,7 @@ async function obtenerUbicacionUsuario() {
                 console.log('✅ Ubicación obtenida:', ubicacionUsuario);
                 
                 if (map) {
-                    map.setView([ubicacionUsuario.lat, ubicacionUsuario.lng], 6);
+                    ajustarZoomPorRadio();
                     agregarMarcadorUsuario();
                 }
                 
@@ -257,6 +257,95 @@ async function obtenerUbicacionUsuario() {
         console.error('❌ Error en geolocalización:', error);
         cargarEventosActivosIniciales();
     }
+}
+
+// ===== NUEVA FUNCIÓN: AJUSTAR ZOOM SEGÚN RADIO =====
+function ajustarZoomPorRadio() {
+    if (!map || !ubicacionUsuario) {
+        console.log('⚠️ No se puede ajustar zoom: mapa o ubicación no disponibles');
+        return;
+    }
+    
+    let zoomLevel;
+    
+    // Mapear radio a nivel de zoom
+    if (radioProximidad >= 999999) {
+        zoomLevel = 2; // Vista global
+    } else if (radioProximidad >= 20000) {
+        zoomLevel = 4; // Continental
+    } else if (radioProximidad >= 15000) {
+        zoomLevel = 5; // Regional amplio
+    } else if (radioProximidad >= 10000) {
+        zoomLevel = 6; // Regional
+    } else if (radioProximidad >= 5000) {
+        zoomLevel = 7; // Local amplio
+    } else {
+        zoomLevel = 8; // Local
+    }
+    
+    map.setView([ubicacionUsuario.lat, ubicacionUsuario.lng], zoomLevel);
+    console.log(`🗺️ Zoom ajustado a nivel ${zoomLevel} para radio ${radioProximidad}km`);
+}
+
+// ===== NUEVA FUNCIÓN: ACTUALIZAR EVENTOS POR RADIO =====
+async function actualizarEventosPorRadio() {
+    const nuevoRadio = parseInt(document.getElementById('radioProximidad').value);
+    
+    if (nuevoRadio === radioProximidad) {
+        console.log('ℹ️ El radio no ha cambiado');
+        return;
+    }
+    
+    radioProximidad = nuevoRadio;
+    console.log(`📍 Radio actualizado a ${radioProximidad}km`);
+    
+    // Ajustar zoom del mapa según el nuevo radio
+    ajustarZoomPorRadio();
+    
+    // Si no hay ubicación del usuario, solo mostrar todos los eventos
+    if (!ubicacionUsuario) {
+        console.log('ℹ️ Sin ubicación del usuario, mostrando todos los eventos');
+        actualizarVistaEventos(eventosData);
+        return;
+    }
+    
+    // Si es global, mostrar todos los eventos
+    if (radioProximidad >= 999999) {
+        console.log('🌍 Radio global seleccionado, mostrando todos los eventos');
+        eventosData = todoEventosData;
+        actualizarVistaEventos(eventosData);
+        return;
+    }
+    
+    // Filtrar eventos por el nuevo radio
+    mostrarEstadoCarga(`Filtrando eventos dentro de ${radioProximidad}km...`);
+    
+    const eventosCercanos = filtrarEventosPorProximidadOptimizado(
+        todoEventosData, 
+        ubicacionUsuario, 
+        radioProximidad
+    );
+    
+    console.log(`📍 Encontrados ${eventosCercanos.length} eventos dentro de ${radioProximidad}km`);
+    
+    if (eventosCercanos.length === 0) {
+        // Si no hay eventos cercanos, mostrar los 20 más recientes
+        const eventosRecientes = todoEventosData
+            .sort((a, b) => {
+                const fechaA = a.geometry && a.geometry.length > 0 ? new Date(a.geometry[0].date) : new Date(0);
+                const fechaB = b.geometry && b.geometry.length > 0 ? new Date(b.geometry[0].date) : new Date(0);
+                return fechaB - fechaA;
+            })
+            .slice(0, 20);
+        
+        eventosData = eventosRecientes;
+        mostrarMensajeSinEventosCercanos();
+    } else {
+        eventosData = eventosCercanos;
+    }
+    
+    // Actualizar vista con los nuevos eventos
+    actualizarVistaEventos(eventosData, todoEventosData.length);
 }
 
 function agregarMarcadorUsuario() {
@@ -715,6 +804,13 @@ function configurarEventosInterfaz() {
         actualizarOpcionesCategorias(selectTipo);
     }
     
+    // NUEVO: Listener para el select de radio de proximidad
+    const selectRadio = document.getElementById('radioProximidad');
+    if (selectRadio) {
+        selectRadio.addEventListener('change', actualizarEventosPorRadio);
+        console.log('✅ Listener de radio de proximidad configurado');
+    }
+    
     const fechaInicio = document.getElementById('fechaInicio');
     const fechaFin = document.getElementById('fechaFin');
     
@@ -877,7 +973,7 @@ function actualizarContador(mostrados, eventosActuales = null, total = null) {
     if (total && total > mostrados) {
         texto = `📊 ${mostrados} de ${total} eventos`;
     } else if (ubicacionUsuario && todoEventosData.length > 0 && mostrados < todoEventosData.length) {
-        texto = `📍 ${mostrados} eventos cercanos de ${todoEventosData.length} totales`;
+        texto = `📍 ${mostrados} eventos cercanos de ${todoEventosData.length} totales (${radioProximidad}km)`;
     } else {
         texto = `⚡ ${mostrados} eventos ${soloEventosActivos ? 'activos' : ''}`;
     }
@@ -911,7 +1007,7 @@ function limpiarMarcadores() {
 
 function centrarMapa() {
     if (ubicacionUsuario) {
-        map.setView([ubicacionUsuario.lat, ubicacionUsuario.lng], 6);
+        ajustarZoomPorRadio();
         console.log('✅ Mapa centrado en tu ubicación');
     } else {
         map.setView([20, 0], 2);
@@ -991,25 +1087,34 @@ styleSheet.textContent = `
 document.head.appendChild(styleSheet);
 
 console.log(`
-🚀 NASA EONET Tracker - Versión SINCRONIZADA Lista-Mapa
+🚀 NASA EONET Tracker - Versión con FILTRO DINÁMICO DE RADIO
 
 ✅ Sistema de usuarios implementado con localStorage
 🔐 Autenticación completa (login/registro)
 ⭐ Favoritos personalizados por usuario
 🎯 4 usuarios de prueba disponibles
 🔄 Sincronización AUTOMÁTICA lista-mapa implementada
-📊 Una función unificada actualiza lista, mapa y contador
+📍 NUEVO: Filtro de Radio de Proximidad dinámico
 
-Características de sincronización:
-• La lista de eventos y el mapa SIEMPRE muestran los mismos eventos
-• Cualquier filtro o cambio se refleja instantáneamente en ambos
-• Los marcadores del mapa corresponden exactamente a la lista
-• Click en evento de la lista centra el mapa en ese evento
+Características del filtro de radio:
+• El listado se actualiza automáticamente al cambiar el radio
+• El zoom del mapa se ajusta según el radio seleccionado
+• Radio global (999999 km) muestra todos los eventos
+• Radios menores filtran por proximidad a tu ubicación
+• Indicador visual del radio actual en el contador
+
+Mapeo de Radio → Zoom:
+- Global (999999km): Zoom 2
+- 20,000km: Zoom 4
+- 15,000km: Zoom 5
+- 10,000km: Zoom 6
+- 5,000km: Zoom 7
 
 Para usar el sistema:
 1. Haz clic en "🔐 Iniciar Sesión" en la esquina superior
 2. Usa uno de los usuarios de prueba o crea uno nuevo
-3. ¡Empieza a marcar tus eventos favoritos!
+3. Cambia el radio de proximidad en el filtro
+4. ¡Observa cómo se actualiza todo automáticamente!
 
 Los datos se guardan en localStorage de tu navegador.
 `);
