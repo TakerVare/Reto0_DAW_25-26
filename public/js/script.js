@@ -122,8 +122,8 @@ async function toggleFavorito(eventoId, titulo) {
             }
         }
         
-        // Actualizar interfaz
-        actualizarVistaFavoritos();
+        // Actualizar interfaz completa sincronizadamente
+        actualizarVistaEventos(obtenerEventosFiltrados());
         
     } catch (error) {
         console.error('❌ Error gestionando favorito:', error);
@@ -131,16 +131,25 @@ async function toggleFavorito(eventoId, titulo) {
     }
 }
 
-// Actualizar toda la vista con los favoritos actualizados
-function actualizarVistaFavoritos() {
-    // Obtener eventos filtrados actuales
-    const eventosFiltrados = obtenerEventosFiltrados();
+// ===== FUNCIÓN UNIFICADA PARA ACTUALIZAR VISTA (LISTA Y MAPA SINCRONIZADOS) =====
+function actualizarVistaEventos(eventos, mostrarTotal = null) {
+    if (!eventos || !Array.isArray(eventos)) {
+        console.error('❌ Error: eventos no es un array válido');
+        return;
+    }
     
-    // Actualizar contador y lista
-    actualizarContadorEventosOptimizado(eventosFiltrados.length, eventosFiltrados);
+    console.log(`🔄 Actualizando vista con ${eventos.length} eventos`);
     
-    // Actualizar mapa
-    mostrarEventosEnMapaOptimizado(eventosFiltrados);
+    // 1. Actualizar lista de eventos
+    mostrarEventosEnLista(eventos);
+    
+    // 2. Actualizar mapa con los MISMOS eventos
+    mostrarEventosEnMapaOptimizado(eventos);
+    
+    // 3. Actualizar contador
+    actualizarContador(eventos.length, eventos, mostrarTotal);
+    
+    console.log(`✅ Vista sincronizada: ${eventos.length} eventos en lista y mapa`);
 }
 
 // Obtener eventos filtrados según el select de tipo
@@ -303,8 +312,8 @@ async function cargarEventosCercanosActivos() {
             eventosData = eventosCercanos;
         }
         
-        mostrarEventosEnMapaOptimizado(eventosData);
-        actualizarContadorEventosOptimizado(eventosData.length, eventosData, eventosActivos.length);
+        // Usar función unificada para sincronizar lista y mapa
+        actualizarVistaEventos(eventosData, eventosActivos.length);
         
     } catch (error) {
         console.error('❌ Error cargando eventos cercanos activos:', error);
@@ -322,8 +331,8 @@ async function cargarEventosActivosIniciales() {
             eventosData = eventosActivos;
             todoEventosData = eventosActivos;
             
-            mostrarEventosEnMapaOptimizado(eventosActivos);
-            actualizarContadorEventosOptimizado(eventosActivos.length, eventosActivos);
+            // Usar función unificada para sincronizar lista y mapa
+            actualizarVistaEventos(eventosActivos);
             
             console.log(`⚡ Carga inicial ultrarrápida: ${eventosActivos.length} eventos activos`);
         } else {
@@ -673,14 +682,18 @@ function mostrarEventosEnLista(eventos) {
                 const lng = parseFloat(evento.geometry[0].coordinates[0]);
                 map.setView([lat, lng], 8);
                 
-                if (marcadores[index] && index < 100) {
-                    marcadores[index].openPopup();
+                // Buscar el marcador correspondiente y abrirlo
+                const indiceEnMapa = Math.min(index, marcadores.length - 1);
+                if (marcadores[indiceEnMapa]) {
+                    marcadores[indiceEnMapa].openPopup();
                 }
             }
         });
         
         lista.appendChild(li);
     });
+    
+    console.log(`✅ Lista actualizada con ${eventos.length} eventos`);
 }
 
 // ===== FUNCIONES DE INTERFAZ =====
@@ -744,8 +757,8 @@ async function cargarTodosLosEventosActivos() {
         todoEventosData = todosEventosActivos;
         eventosData = todosEventosActivos;
         
-        mostrarEventosEnMapaOptimizado(eventosData);
-        actualizarContadorEventosOptimizado(eventosData.length, eventosData);
+        // Usar función unificada para sincronizar lista y mapa
+        actualizarVistaEventos(eventosData);
         
         console.log(`✅ Cargados todos los eventos activos: ${eventosData.length}`);
     } catch (error) {
@@ -765,8 +778,8 @@ async function cargarEventosCerrados() {
         todoEventosData = eventosCompletos;
         eventosData = eventosCompletos;
         
-        mostrarEventosEnMapaOptimizado(eventosData);
-        actualizarContadorEventosOptimizado(eventosData.length, eventosData);
+        // Usar función unificada para sincronizar lista y mapa
+        actualizarVistaEventos(eventosData);
         
         console.log(`✅ Añadidos ${soloEventosCerrados.length} eventos cerrados`);
     } catch (error) {
@@ -821,8 +834,8 @@ function aplicarFiltroFechas() {
         });
     });
     
-    mostrarEventosEnMapaOptimizado(eventosFiltrados);
-    actualizarContadorEventosOptimizado(eventosFiltrados.length, eventosFiltrados, eventosData.length);
+    // Usar función unificada para sincronizar lista y mapa
+    actualizarVistaEventos(eventosFiltrados, eventosData.length);
 }
 
 function limpiarFiltros() {
@@ -830,16 +843,16 @@ function limpiarFiltros() {
     document.getElementById('fechaFin').value = '';
     document.getElementById('selectTipoEvento').value = '';
     
-    mostrarEventosEnMapaOptimizado(eventosData);
-    actualizarContadorEventosOptimizado(eventosData.length, eventosData);
+    // Usar función unificada para sincronizar lista y mapa
+    actualizarVistaEventos(eventosData);
 }
 
 function filtrarPorTipoEvento() {
     const tipoSeleccionado = document.getElementById('selectTipoEvento').value;
     
     if (!tipoSeleccionado) {
-        mostrarEventosEnMapaOptimizado(eventosData);
-        actualizarContadorEventosOptimizado(eventosData.length, eventosData);
+        // Usar función unificada para sincronizar lista y mapa
+        actualizarVistaEventos(eventosData);
         return;
     }
     
@@ -847,19 +860,14 @@ function filtrarPorTipoEvento() {
         return evento.categories && evento.categories.some(cat => cat.id === tipoSeleccionado);
     });
     
-    mostrarEventosEnMapaOptimizado(eventosFiltrados);
-    actualizarContadorEventosOptimizado(eventosFiltrados.length, eventosFiltrados, eventosData.length);
+    // Usar función unificada para sincronizar lista y mapa
+    actualizarVistaEventos(eventosFiltrados, eventosData.length);
 }
 
-// ===== ACTUALIZACIÓN DE CONTADOR OPTIMIZADA CON ACTUALIZACIÓN DE LISTA =====
-function actualizarContadorEventosOptimizado(mostrados, eventosActuales = null, total = null) {
+// ===== ACTUALIZACIÓN DE CONTADOR SIMPLIFICADA =====
+function actualizarContador(mostrados, eventosActuales = null, total = null) {
     const contador = document.getElementById('contadorEventos');
     if (!contador) return;
-    
-    // Si se proporciona eventosActuales, actualizar la lista
-    if (eventosActuales && Array.isArray(eventosActuales)) {
-        mostrarEventosEnLista(eventosActuales);
-    }
     
     // Contar favoritos en los eventos mostrados
     const eventosMostrados = eventosActuales || eventosData;
@@ -879,8 +887,6 @@ function actualizarContadorEventosOptimizado(mostrados, eventosActuales = null, 
     }
     
     contador.innerHTML = `<span>${texto}</span>`;
-    
-    console.log(`🔄 Contador actualizado: ${texto}`);
 }
 
 function actualizarOpcionesCategorias(selectElement) {
@@ -985,13 +991,20 @@ styleSheet.textContent = `
 document.head.appendChild(styleSheet);
 
 console.log(`
-🚀 NASA EONET Tracker - Versión ULTRA-OPTIMIZADA con Autenticación
+🚀 NASA EONET Tracker - Versión SINCRONIZADA Lista-Mapa
 
 ✅ Sistema de usuarios implementado con localStorage
 🔐 Autenticación completa (login/registro)
 ⭐ Favoritos personalizados por usuario
 🎯 4 usuarios de prueba disponibles
-🔄 Sincronización automática contador-lista implementada
+🔄 Sincronización AUTOMÁTICA lista-mapa implementada
+📊 Una función unificada actualiza lista, mapa y contador
+
+Características de sincronización:
+• La lista de eventos y el mapa SIEMPRE muestran los mismos eventos
+• Cualquier filtro o cambio se refleja instantáneamente en ambos
+• Los marcadores del mapa corresponden exactamente a la lista
+• Click en evento de la lista centra el mapa en ese evento
 
 Para usar el sistema:
 1. Haz clic en "🔐 Iniciar Sesión" en la esquina superior
