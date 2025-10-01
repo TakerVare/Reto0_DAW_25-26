@@ -13,6 +13,7 @@
     <!-- CSS personalizado -->
     <link rel="stylesheet" href="./css/styles.css">
     <link rel="stylesheet" href="./css/auth.css">
+    <link rel="stylesheet" href="./css/globe.css">
 </head>
 <body>
     <!-- Modal de Autenticación -->
@@ -189,10 +190,11 @@
         <section class="mapa">
             <h2>Mapa de Eventos</h2>
             
-            <!-- CONTROLES DEL MAPA (Ejercicio 8: Capas) -->
+            <!-- CONTROLES DEL MAPA (Ejercicio 8: Capas + Ejercicio 10: Vista 3D) -->
             <div class="controles-mapa">
                 <div class="controles-grupo">
                     <button id="btnCentrarMapa">🌍 Centrar Mapa</button>
+                    <button id="btnToggleVista3D" onclick="toggleVista3D()">🌍 Vista 3D</button>
                 </div>
                 
                 <!-- Ejercicio 8: Selector de Capas del Mapa -->
@@ -201,9 +203,30 @@
                 </div>
             </div>
             
-            <div id="map">
+            <!-- MAPA 2D (Leaflet) -->
+            <div id="map" class="active">
                 <div class="mapa-cargando">
                     <p>🛰️ Inicializando mapa...</p>
+                </div>
+            </div>
+
+            <!-- GLOBO 3D (Three.js) - Ejercicio 10 -->
+            <div id="globe3d">
+                <div class="globo-cargando">
+                    Cargando globo terráqueo 3D...
+                </div>
+                
+                <!-- Instrucciones de uso -->
+                <div class="instrucciones-globo">
+                    <strong>Controles:</strong> 
+                    Arrastra para rotar | 
+                    Scroll para zoom | 
+                    Click en eventos para info
+                </div>
+
+                <!-- Contador de eventos visibles -->
+                <div class="contador-eventos-3d" style="display: none;">
+                    <span class="numero" id="contadorGlobo3D">0</span> eventos en globo
                 </div>
             </div>
         </section>
@@ -211,9 +234,12 @@
 
     <footer>
         <p>Desarrollado con datos de NASA EONET 🚀 | © 2024 | 
-           <small>Con datos meteorológicos de OpenWeatherMap 🌦️</small>
+           <small>Con datos meteorológicos de OpenWeatherMap 🌦️ | Globo 3D con Three.js 🌍</small>
         </p>
     </footer>
+
+    <!-- Three.js para globo 3D (Ejercicio 10) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <!-- Leaflet JavaScript -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
@@ -240,6 +266,9 @@
 
     <!-- Mapa -->
     <script src="./js/map.js"></script>
+
+    <!-- Globo 3D (Ejercicio 10) -->
+    <script src="./js/globe.js"></script>
 
     <!-- Eventos -->
     <script src="./js/events.js"></script>

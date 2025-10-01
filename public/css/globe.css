@@ -1,0 +1,491 @@
+/* ===== ESTILOS PARA GLOBO 3D ===== */
+
+/* Contenedor del globo */
+#globe3d {
+    width: 100%;
+    height: 500px;
+    border-radius: 10px;
+    border: 2px solid #e9ecef;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    position: relative;
+    background: linear-gradient(135deg, #000428 0%, #004e92 100%);
+    display: none;
+    overflow: hidden;
+}
+
+#globe3d.active {
+    display: block;
+}
+
+#map.active {
+    display: block;
+}
+
+#map:not(.active) {
+    display: none;
+}
+
+/* Botón para alternar vista 2D/3D */
+#btnToggleVista3D {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 0.7rem 1.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    font-size: 0.95rem;
+    position: relative;
+    overflow: hidden;
+}
+
+#btnToggleVista3D:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+#btnToggleVista3D:active {
+    transform: translateY(0);
+}
+
+#btnToggleVista3D::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transition: left 0.5s;
+}
+
+#btnToggleVista3D:hover::before {
+    left: 100%;
+}
+
+/* Panel de información de eventos en 3D */
+.panel-info-3d {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 1.5rem;
+    max-width: 350px;
+    max-height: 80%;
+    overflow-y: auto;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    transform: translateX(400px);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    z-index: 1000;
+    border: 2px solid rgba(102, 126, 234, 0.3);
+}
+
+.panel-info-3d.visible {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.panel-info-3d .btn-cerrar-panel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(220, 53, 69, 0.1);
+    border: none;
+    color: #dc3545;
+    font-size: 24px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.panel-info-3d .btn-cerrar-panel:hover {
+    background: #dc3545;
+    color: white;
+    transform: rotate(90deg);
+}
+
+.panel-info-3d .panel-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.panel-info-3d .panel-header h3 {
+    margin: 0;
+    flex: 1;
+    font-size: 1.2rem;
+    line-height: 1.3;
+}
+
+.panel-info-3d .panel-contenido {
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.panel-info-3d .panel-contenido p {
+    margin: 0.75rem 0;
+}
+
+.panel-info-3d .panel-contenido strong {
+    color: #00274d;
+}
+
+.panel-info-3d a {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.panel-info-3d a:hover {
+    color: #764ba2;
+    text-decoration: underline;
+}
+
+/* Mensaje de carga del globo */
+.globo-cargando {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 255, 255, 0.95);
+    padding: 2rem 3rem;
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+    text-align: center;
+    font-weight: 600;
+    color: #00274d;
+    z-index: 100;
+    animation: fadeIn 0.5s ease-out;
+}
+
+.globo-cargando::before {
+    content: '🌍';
+    display: block;
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    animation: spin 2s linear infinite;
+}
+
+/* Instrucciones de uso del globo */
+.instrucciones-globo {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 25px;
+    font-size: 0.85rem;
+    backdrop-filter: blur(5px);
+    z-index: 10;
+    animation: fadeInUp 0.8s ease-out;
+    text-align: center;
+    max-width: 90%;
+}
+
+.instrucciones-globo strong {
+    color: #667eea;
+}
+
+/* Controles visuales del globo */
+.controles-globo {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(10px);
+    border-radius: 10px;
+    padding: 1rem;
+    color: white;
+    font-size: 0.85rem;
+    z-index: 10;
+    animation: fadeIn 0.5s ease-out;
+}
+
+.controles-globo h4 {
+    margin: 0 0 0.75rem 0;
+    font-size: 1rem;
+    color: #667eea;
+}
+
+.controles-globo ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.controles-globo li {
+    margin: 0.5rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.controles-globo .icono-control {
+    background: rgba(102, 126, 234, 0.3);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    min-width: 70px;
+    text-align: center;
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 20px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Efecto de brillo en el canvas del globo */
+#globe3d canvas {
+    border-radius: 10px;
+}
+
+#globe3d canvas:hover {
+    cursor: grab;
+}
+
+#globe3d canvas:active {
+    cursor: grabbing;
+}
+
+/* Scrollbar personalizada para panel de info */
+.panel-info-3d::-webkit-scrollbar {
+    width: 8px;
+}
+
+.panel-info-3d::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.panel-info-3d::-webkit-scrollbar-thumb {
+    background: #667eea;
+    border-radius: 4px;
+}
+
+.panel-info-3d::-webkit-scrollbar-thumb:hover {
+    background: #764ba2;
+}
+
+/* Badges en el panel */
+.panel-info-3d .badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin: 0.25rem 0;
+}
+
+.panel-info-3d .badge-abierto {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.panel-info-3d .badge-cerrado {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* Estados del botón de toggle */
+#btnToggleVista3D.activo-3d {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+#btnToggleVista3D.activo-3d:hover {
+    background: linear-gradient(135deg, #38ef7d 0%, #11998e 100%);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    #globe3d {
+        height: 400px;
+    }
+
+    .panel-info-3d {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
+        padding: 1rem;
+    }
+
+    .panel-info-3d .panel-header h3 {
+        font-size: 1rem;
+    }
+
+    .instrucciones-globo {
+        bottom: 10px;
+        font-size: 0.75rem;
+        padding: 0.5rem 1rem;
+    }
+
+    .controles-globo {
+        top: 10px;
+        left: 10px;
+        padding: 0.75rem;
+        font-size: 0.75rem;
+    }
+
+    #btnToggleVista3D {
+        width: 100%;
+        margin-top: 0.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    #globe3d {
+        height: 350px;
+    }
+
+    .panel-info-3d .panel-contenido {
+        font-size: 0.85rem;
+    }
+}
+
+/* Overlay de carga inicial */
+.globo-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 4, 40, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeOut 1s ease-out 2s forwards;
+}
+
+@keyframes fadeOut {
+    to {
+        opacity: 0;
+        pointer-events: none;
+    }
+}
+
+/* Mejoras de rendimiento */
+#globe3d canvas {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+}
+
+/* Indicador de eventos visibles */
+.contador-eventos-3d {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 0.5rem 1.5rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    backdrop-filter: blur(5px);
+    z-index: 10;
+    animation: fadeIn 0.5s ease-out;
+}
+
+.contador-eventos-3d .numero {
+    color: #667eea;
+    font-size: 1.1rem;
+}
+
+/* Botón de ayuda flotante */
+.btn-ayuda-globo {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(102, 126, 234, 0.9);
+    color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    z-index: 10;
+}
+
+.btn-ayuda-globo:hover {
+    background: rgba(118, 75, 162, 0.9);
+    transform: scale(1.1);
+}
+
+/* Tooltip de ayuda */
+.tooltip-ayuda {
+    position: absolute;
+    bottom: 70px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    max-width: 250px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 100;
+}
+
+.tooltip-ayuda.visible {
+    opacity: 1;
+}
+
+.tooltip-ayuda::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    right: 15px;
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid rgba(0, 0, 0, 0.9);
+}

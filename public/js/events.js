@@ -1,7 +1,7 @@
-// ===== GESTIÓN DE EVENTOS =====
+// ===== GESTIÓN DE EVENTOS CON SOPORTE 3D =====
 
 /**
- * Actualiza la vista sincronizada de eventos (lista y mapa)
+ * Actualiza la vista sincronizada de eventos (lista, mapa 2D y globo 3D)
  * @param {Array} eventos - Eventos a mostrar
  * @param {number} mostrarTotal - Total de eventos para el contador
  */
@@ -16,13 +16,28 @@ function actualizarVistaEventos(eventos, mostrarTotal = null) {
     // Actualizar lista de eventos
     mostrarEventosEnLista(eventos);
     
-    // Actualizar mapa con los mismos eventos
+    // Actualizar mapa 2D con los mismos eventos
     mostrarEventosEnMapaOptimizado(eventos);
+    
+    // Actualizar globo 3D si está activo
+    if (isGlobeActive && typeof mostrarEventosEnGlobo3D === 'function') {
+        mostrarEventosEnGlobo3D(eventos);
+        
+        // Actualizar contador del globo
+        const contadorGlobo = document.getElementById('contadorGlobo3D');
+        if (contadorGlobo) {
+            contadorGlobo.textContent = Math.min(eventos.length, 100);
+            const contenedorContador = document.querySelector('.contador-eventos-3d');
+            if (contenedorContador) {
+                contenedorContador.style.display = eventos.length > 0 ? 'block' : 'none';
+            }
+        }
+    }
     
     // Actualizar contador
     actualizarContador(eventos.length, eventos, mostrarTotal);
     
-    console.log(`✅ Vista sincronizada: ${eventos.length} eventos en lista y mapa`);
+    console.log(`✅ Vista sincronizada: ${eventos.length} eventos en lista, mapa 2D y globo 3D`);
 }
 
 /**
@@ -70,7 +85,7 @@ async function cargarEventosCercanosActivos() {
             eventosData = eventosCercanos;
         }
         
-        // Actualizar vista con sincronización completa
+        // Actualizar vista con sincronización completa (incluye globo 3D)
         actualizarVistaEventos(eventosData, eventosActivos.length);
         
     } catch (error) {
@@ -93,7 +108,7 @@ async function cargarEventosActivosIniciales() {
             eventosData = eventosActivos;
             todoEventosData = eventosActivos;
             
-            // Actualizar vista con sincronización completa
+            // Actualizar vista con sincronización completa (incluye globo 3D)
             actualizarVistaEventos(eventosActivos);
             
             console.log(`⚡ Carga inicial completa: ${eventosActivos.length} eventos activos`);
@@ -126,7 +141,7 @@ async function cargarTodosLosEventosActivos() {
         document.getElementById('fechaInicio').value = '';
         document.getElementById('fechaFin').value = '';
         
-        // Actualizar vista con sincronización completa
+        // Actualizar vista con sincronización completa (incluye globo 3D)
         actualizarVistaEventos(eventosData);
         
         console.log(`✅ Cargados todos los eventos activos: ${eventosData.length}`);
@@ -162,7 +177,7 @@ async function cargarEventosCerrados() {
         document.getElementById('fechaInicio').value = '';
         document.getElementById('fechaFin').value = '';
         
-        // Actualizar vista con sincronización completa
+        // Actualizar vista con sincronización completa (incluye globo 3D)
         actualizarVistaEventos(eventosData);
         
         console.log(`✅ Añadidos ${soloEventosCerrados.length} eventos cerrados`);
@@ -242,7 +257,7 @@ async function actualizarEventosPorRadio() {
         eventosData = eventosCercanos;
     }
     
-    // Actualizar vista con sincronización completa
+    // Actualizar vista con sincronización completa (incluye globo 3D)
     actualizarVistaEventos(eventosData, todoEventosData.length);
 }
 
@@ -321,7 +336,7 @@ function mostrarEventosEnLista(eventos) {
             </div>
         `;
         
-        // Click en el evento para centrar en el mapa
+        // Click en el evento para centrar en el mapa o globo
         li.addEventListener('click', (e) => {
             // No activar si se hace click en el botón de favoritos
             if (e.target.classList.contains('btn-favorito-lista')) return;
@@ -330,16 +345,26 @@ function mostrarEventosEnLista(eventos) {
                 const lat = parseFloat(evento.geometry[0].coordinates[1]);
                 const lng = parseFloat(evento.geometry[0].coordinates[0]);
                 
-                // Centrar mapa en el evento
-                map.setView([lat, lng], 8);
-                
-                // Abrir popup del marcador correspondiente
-                const indiceEnMapa = Math.min(index, marcadores.length - 1);
-                if (marcadores[indiceEnMapa]) {
-                    marcadores[indiceEnMapa].openPopup();
+                // Verificar si está en modo 3D
+                if (isGlobeActive && typeof centrarGloboEn === 'function') {
+                    centrarGloboEn(lat, lng);
+                    
+                    // Mostrar información del evento
+                    if (typeof mostrarInfoEvento3D === 'function') {
+                        mostrarInfoEvento3D(evento);
+                    }
+                } else {
+                    // Centrar mapa 2D en el evento
+                    map.setView([lat, lng], 8);
+                    
+                    // Abrir popup del marcador correspondiente
+                    const indiceEnMapa = Math.min(index, marcadores.length - 1);
+                    if (marcadores[indiceEnMapa]) {
+                        marcadores[indiceEnMapa].openPopup();
+                    }
                 }
                 
-                console.log(`🗺️ Mapa centrado en: ${evento.title}`);
+                console.log(`🗺️ Vista centrada en: ${evento.title}`);
             }
         });
         
@@ -349,4 +374,4 @@ function mostrarEventosEnLista(eventos) {
     console.log(`✅ Lista actualizada con ${eventos.length} eventos`);
 }
 
-console.log('✅ Módulo de eventos cargado');
+console.log('✅ Módulo de eventos cargado (con soporte 3D)');
