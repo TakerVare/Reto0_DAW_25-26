@@ -33,35 +33,44 @@ function configurarEventosInterfaz() {
     if (fechaInicio) fechaInicio.addEventListener('change', validarFechas);
     if (fechaFin) fechaFin.addEventListener('change', validarFechas);
     
-    agregarBotonesOptimizados();
+    // Agregar botones de eventos en la sección de filtros
+    agregarBotonesEventos();
     
     console.log('✅ Eventos de interfaz configurados (optimizado)');
 }
 
 /**
- * Agrega botones adicionales a la interfaz
+ * Agrega botones de control de eventos a la sección de filtros
  */
-function agregarBotonesOptimizados() {
-    const controlesMapa = document.querySelector('.controles-mapa');
-    if (!controlesMapa) return;
-    
-    if (!document.getElementById('btnTodosEventosActivos')) {
-        const btnTodosActivos = document.createElement('button');
-        btnTodosActivos.id = 'btnTodosEventosActivos';
-        btnTodosActivos.innerHTML = '⚡ Más Eventos Activos';
-        btnTodosActivos.classList.add('btn-optimizado');
-        btnTodosActivos.addEventListener('click', cargarTodosLosEventosActivos);
-        controlesMapa.appendChild(btnTodosActivos);
+function agregarBotonesEventos() {
+    const contenedorBotones = document.getElementById('botonesEventos');
+    if (!contenedorBotones) {
+        console.warn('⚠️ No se encontró el contenedor de botones de eventos');
+        return;
     }
     
-    if (!document.getElementById('btnEventosCerrados')) {
-        const btnCerrados = document.createElement('button');
-        btnCerrados.id = 'btnEventosCerrados';
-        btnCerrados.innerHTML = '🔍 Ver Eventos Cerrados';
-        btnCerrados.classList.add('btn-secundario-opt');
-        btnCerrados.addEventListener('click', cargarEventosCerrados);
-        controlesMapa.appendChild(btnCerrados);
-    }
+    // Limpiar contenido existente
+    contenedorBotones.innerHTML = '';
+    
+    // Botón: Más Eventos Activos
+    const btnTodosActivos = document.createElement('button');
+    btnTodosActivos.id = 'btnTodosEventosActivos';
+    btnTodosActivos.innerHTML = '⚡ Más Eventos Activos';
+    btnTodosActivos.classList.add('btn-optimizado');
+    btnTodosActivos.title = 'Cargar todos los eventos activos disponibles';
+    btnTodosActivos.addEventListener('click', cargarTodosLosEventosActivos);
+    contenedorBotones.appendChild(btnTodosActivos);
+    
+    // Botón: Ver Eventos Cerrados
+    const btnCerrados = document.createElement('button');
+    btnCerrados.id = 'btnEventosCerrados';
+    btnCerrados.innerHTML = '🔍 Ver Eventos Cerrados';
+    btnCerrados.classList.add('btn-secundario-opt');
+    btnCerrados.title = 'Agregar eventos cerrados a la vista actual';
+    btnCerrados.addEventListener('click', cargarEventosCerrados);
+    contenedorBotones.appendChild(btnCerrados);
+    
+    console.log('✅ Botones de eventos agregados a la sección de filtros');
 }
 
 /**
@@ -110,26 +119,41 @@ function aplicarFiltroFechas() {
         return;
     }
     
-    mostrarEstadoCarga('Filtrando eventos...');
+    mostrarEstadoCarga('Filtrando eventos por fechas...');
     
-    const eventosFiltrados = eventosData.filter(evento => {
-        return evento.geometry.some(geo => {
+    // Obtener eventos base (puede ser eventosData o todoEventosData dependiendo del contexto)
+    const eventosBase = obtenerEventosBaseFiltrado();
+    
+    const eventosFiltrados = eventosBase.filter(evento => {
+        return evento.geometry && evento.geometry.some(geo => {
             const fechaEvento = new Date(geo.date);
             return fechaEvento >= fechaInicioDate && fechaEvento <= fechaFinDate;
         });
     });
     
-    actualizarVistaEventos(eventosFiltrados, eventosData.length);
+    console.log(`📅 Filtrado por fechas: ${eventosFiltrados.length} eventos`);
+    
+    // Actualizar tanto la lista como el mapa
+    actualizarVistaEventos(eventosFiltrados, eventosBase.length);
 }
 
 /**
  * Limpia todos los filtros aplicados
  */
 function limpiarFiltros() {
+    // Limpiar campos de fecha
     document.getElementById('fechaInicio').value = '';
     document.getElementById('fechaFin').value = '';
-    document.getElementById('selectTipoEvento').value = '';
     
+    // Limpiar selector de tipo
+    const selectTipo = document.getElementById('selectTipoEvento');
+    if (selectTipo) {
+        selectTipo.value = '';
+    }
+    
+    console.log('🧹 Filtros limpiados');
+    
+    // Restaurar vista a los eventos actuales (sin filtros de fecha/tipo)
     actualizarVistaEventos(eventosData);
 }
 
@@ -140,15 +164,45 @@ function filtrarPorTipoEvento() {
     const tipoSeleccionado = document.getElementById('selectTipoEvento').value;
     
     if (!tipoSeleccionado) {
+        // Si no hay tipo seleccionado, mostrar todos los eventos actuales
         actualizarVistaEventos(eventosData);
+        console.log('🌐 Mostrando todos los tipos de eventos');
         return;
     }
     
-    const eventosFiltrados = eventosData.filter(evento => {
+    mostrarEstadoCarga('Filtrando por tipo de evento...');
+    
+    // Obtener eventos base para filtrar
+    const eventosBase = obtenerEventosBaseFiltrado();
+    
+    const eventosFiltrados = eventosBase.filter(evento => {
         return evento.categories && evento.categories.some(cat => cat.id === tipoSeleccionado);
     });
     
-    actualizarVistaEventos(eventosFiltrados, eventosData.length);
+    const nombreTipo = configuracionEventos[tipoSeleccionado]?.nombre || tipoSeleccionado;
+    console.log(`🔍 Filtrado por tipo "${nombreTipo}": ${eventosFiltrados.length} eventos`);
+    
+    // Actualizar tanto la lista como el mapa
+    actualizarVistaEventos(eventosFiltrados, eventosBase.length);
+}
+
+/**
+ * Obtiene los eventos base para aplicar filtros
+ * @returns {Array} Eventos base
+ */
+function obtenerEventosBaseFiltrado() {
+    // Si tenemos filtro de fechas activo, usar eventosData
+    // Si no, usar todoEventosData o eventosData según disponibilidad
+    const fechaInicio = document.getElementById('fechaInicio').value;
+    const fechaFin = document.getElementById('fechaFin').value;
+    
+    if (fechaInicio || fechaFin) {
+        // Si hay filtro de fechas, usar eventosData actual
+        return eventosData;
+    }
+    
+    // Si no hay filtro de fechas, usar todos los eventos disponibles
+    return todoEventosData.length > 0 ? todoEventosData : eventosData;
 }
 
 /**
@@ -164,8 +218,16 @@ function actualizarContador(mostrados, eventosActuales = null, total = null) {
     const eventosMostrados = eventosActuales || eventosData;
     const favoritosCount = eventosMostrados.filter(e => favoritosUsuario.includes(e.id)).length;
     
+    // Verificar si hay filtros activos
+    const tipoSeleccionado = document.getElementById('selectTipoEvento')?.value;
+    const fechaInicio = document.getElementById('fechaInicio')?.value;
+    const fechaFin = document.getElementById('fechaFin')?.value;
+    const hayFiltros = tipoSeleccionado || fechaInicio || fechaFin;
+    
     let texto;
-    if (total && total > mostrados) {
+    if (hayFiltros && total && total > mostrados) {
+        texto = `🔍 ${mostrados} de ${total} eventos (filtrados)`;
+    } else if (total && total > mostrados) {
         texto = `📊 ${mostrados} de ${total} eventos`;
     } else if (ubicacionUsuario && todoEventosData.length > 0 && mostrados < todoEventosData.length) {
         texto = `📍 ${mostrados} eventos cercanos de ${todoEventosData.length} totales (${radioProximidad}km)`;
@@ -189,14 +251,19 @@ function actualizarOpcionesCategorias(selectElement) {
     selectElement.innerHTML = '';
     selectElement.appendChild(primeraOpcion);
     
-    Object.entries(configuracionEventos).forEach(([id, config]) => {
-        if (id !== 'default') {
-            const option = document.createElement('option');
-            option.value = id;
-            option.textContent = `${config.emoji} ${config.nombre}`;
-            selectElement.appendChild(option);
-        }
+    // Ordenar las categorías alfabéticamente por nombre
+    const categoriasOrdenadas = Object.entries(configuracionEventos)
+        .filter(([id]) => id !== 'default')
+        .sort((a, b) => a[1].nombre.localeCompare(b[1].nombre));
+    
+    categoriasOrdenadas.forEach(([id, config]) => {
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = `${config.emoji} ${config.nombre}`;
+        selectElement.appendChild(option);
     });
+    
+    console.log(`✅ ${categoriasOrdenadas.length} categorías cargadas en el selector`);
 }
 
 console.log('✅ Módulo de interfaz de usuario cargado');

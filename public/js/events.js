@@ -13,27 +13,52 @@ function actualizarVistaEventos(eventos, mostrarTotal = null) {
     
     console.log(`🔄 Actualizando vista con ${eventos.length} eventos`);
     
+    // Actualizar lista de eventos
     mostrarEventosEnLista(eventos);
+    
+    // Actualizar mapa con los mismos eventos
     mostrarEventosEnMapaOptimizado(eventos);
+    
+    // Actualizar contador
     actualizarContador(eventos.length, eventos, mostrarTotal);
     
     console.log(`✅ Vista sincronizada: ${eventos.length} eventos en lista y mapa`);
 }
 
 /**
- * Obtiene los eventos filtrados según el tipo seleccionado
+ * Obtiene los eventos filtrados según los criterios activos
  * @returns {Array} Eventos filtrados
  */
 function obtenerEventosFiltrados() {
-    const tipoSeleccionado = document.getElementById('selectTipoEvento')?.value;
+    let eventosFiltrados = eventosData;
     
-    if (!tipoSeleccionado) {
-        return eventosData;
+    // Filtro por tipo de evento
+    const tipoSeleccionado = document.getElementById('selectTipoEvento')?.value;
+    if (tipoSeleccionado) {
+        eventosFiltrados = eventosFiltrados.filter(evento => 
+            evento.categories && evento.categories.some(cat => cat.id === tipoSeleccionado)
+        );
+        console.log(`🔍 Filtrado por tipo "${tipoSeleccionado}": ${eventosFiltrados.length} eventos`);
     }
     
-    return eventosData.filter(evento => 
-        evento.categories && evento.categories.some(cat => cat.id === tipoSeleccionado)
-    );
+    // Filtro por fechas
+    const fechaInicio = document.getElementById('fechaInicio')?.value;
+    const fechaFin = document.getElementById('fechaFin')?.value;
+    
+    if (fechaInicio && fechaFin) {
+        const fechaInicioDate = new Date(fechaInicio);
+        const fechaFinDate = new Date(fechaFin);
+        
+        eventosFiltrados = eventosFiltrados.filter(evento => {
+            return evento.geometry && evento.geometry.some(geo => {
+                const fechaEvento = new Date(geo.date);
+                return fechaEvento >= fechaInicioDate && fechaEvento <= fechaFinDate;
+            });
+        });
+        console.log(`📅 Filtrado por fechas: ${eventosFiltrados.length} eventos`);
+    }
+    
+    return eventosFiltrados;
 }
 
 /**
@@ -52,13 +77,20 @@ async function cargarEventosCercanosActivos() {
         
         console.log(`⚡ API optimizada: ${eventosActivos.length} eventos activos obtenidos`);
         
+        // Guardar todos los eventos disponibles
         todoEventosData = eventosActivos;
         
-        const eventosCercanos = filtrarEventosPorProximidadOptimizado(eventosActivos, ubicacionUsuario, radioProximidad);
+        // Filtrar por proximidad si hay ubicación
+        const eventosCercanos = filtrarEventosPorProximidadOptimizado(
+            eventosActivos, 
+            ubicacionUsuario, 
+            radioProximidad
+        );
         
         console.log(`📍 Encontrados ${eventosCercanos.length} eventos activos dentro de ${radioProximidad}km`);
         
         if (eventosCercanos.length === 0) {
+            // Si no hay eventos cercanos, mostrar los más recientes
             const eventosRecientes = eventosActivos
                 .sort((a, b) => {
                     const fechaA = a.geometry && a.geometry.length > 0 ? new Date(a.geometry[0].date) : new Date(0);
@@ -73,6 +105,7 @@ async function cargarEventosCercanosActivos() {
             eventosData = eventosCercanos;
         }
         
+        // Actualizar vista con sincronización completa
         actualizarVistaEventos(eventosData, eventosActivos.length);
         
     } catch (error) {
@@ -94,6 +127,7 @@ async function cargarEventosActivosIniciales() {
             eventosData = eventosActivos;
             todoEventosData = eventosActivos;
             
+            // Actualizar vista con sincronización completa
             actualizarVistaEventos(eventosActivos);
             
             console.log(`⚡ Carga inicial ultrarrápida: ${eventosActivos.length} eventos activos`);
@@ -118,9 +152,17 @@ async function cargarTodosLosEventosActivos() {
         todoEventosData = todosEventosActivos;
         eventosData = todosEventosActivos;
         
+        // Limpiar filtros de tipo al cargar todos los eventos
+        const selectTipo = document.getElementById('selectTipoEvento');
+        if (selectTipo) selectTipo.value = '';
+        
+        // Actualizar vista con sincronización completa
         actualizarVistaEventos(eventosData);
         
         console.log(`✅ Cargados todos los eventos activos: ${eventosData.length}`);
+        
+        // Mostrar notificación
+        mostrarNotificacion(`✅ ${eventosData.length} eventos activos cargados`, 'success');
     } catch (error) {
         console.error('❌ Error cargando todos los eventos activos:', error);
         mostrarError('Error al cargar todos los eventos activos.');
@@ -137,13 +179,22 @@ async function cargarEventosCerrados() {
         const eventosCerrados = await obtenerEventosDeAPI(false);
         const soloEventosCerrados = eventosCerrados.filter(evento => evento.closed);
         
+        // Combinar eventos activos actuales con cerrados
         const eventosCompletos = [...eventosData, ...soloEventosCerrados];
         todoEventosData = eventosCompletos;
         eventosData = eventosCompletos;
         
+        // Limpiar filtros al añadir eventos cerrados
+        const selectTipo = document.getElementById('selectTipoEvento');
+        if (selectTipo) selectTipo.value = '';
+        
+        // Actualizar vista con sincronización completa
         actualizarVistaEventos(eventosData);
         
         console.log(`✅ Añadidos ${soloEventosCerrados.length} eventos cerrados`);
+        
+        // Mostrar notificación
+        mostrarNotificacion(`✅ ${soloEventosCerrados.length} eventos cerrados añadidos`, 'success');
     } catch (error) {
         console.error('❌ Error cargando eventos cerrados:', error);
         mostrarError('Error al cargar eventos cerrados.');
@@ -164,6 +215,7 @@ async function actualizarEventosPorRadio() {
     radioProximidad = nuevoRadio;
     console.log(`📍 Radio actualizado a ${radioProximidad}km`);
     
+    // Ajustar zoom del mapa
     ajustarZoomPorRadio();
     
     if (!ubicacionUsuario) {
@@ -175,12 +227,18 @@ async function actualizarEventosPorRadio() {
     if (radioProximidad >= 999999) {
         console.log('🌍 Radio global seleccionado, mostrando todos los eventos');
         eventosData = todoEventosData;
+        
+        // Limpiar filtros al mostrar todos
+        const selectTipo = document.getElementById('selectTipoEvento');
+        if (selectTipo) selectTipo.value = '';
+        
         actualizarVistaEventos(eventosData);
         return;
     }
     
     mostrarEstadoCarga(`Filtrando eventos dentro de ${radioProximidad}km...`);
     
+    // Filtrar eventos por proximidad
     const eventosCercanos = filtrarEventosPorProximidadOptimizado(
         todoEventosData, 
         ubicacionUsuario, 
@@ -190,6 +248,7 @@ async function actualizarEventosPorRadio() {
     console.log(`📍 Encontrados ${eventosCercanos.length} eventos dentro de ${radioProximidad}km`);
     
     if (eventosCercanos.length === 0) {
+        // Si no hay eventos cercanos, mostrar los más recientes
         const eventosRecientes = todoEventosData
             .sort((a, b) => {
                 const fechaA = a.geometry && a.geometry.length > 0 ? new Date(a.geometry[0].date) : new Date(0);
@@ -204,6 +263,7 @@ async function actualizarEventosPorRadio() {
         eventosData = eventosCercanos;
     }
     
+    // Actualizar vista con sincronización completa
     actualizarVistaEventos(eventosData, todoEventosData.length);
 }
 
@@ -282,18 +342,25 @@ function mostrarEventosEnLista(eventos) {
             </div>
         `;
         
+        // Click en el evento para centrar en el mapa
         li.addEventListener('click', (e) => {
+            // No activar si se hace click en el botón de favoritos
             if (e.target.classList.contains('btn-favorito-lista')) return;
             
             if (evento.geometry && evento.geometry.length > 0) {
                 const lat = parseFloat(evento.geometry[0].coordinates[1]);
                 const lng = parseFloat(evento.geometry[0].coordinates[0]);
+                
+                // Centrar mapa en el evento
                 map.setView([lat, lng], 8);
                 
+                // Abrir popup del marcador correspondiente
                 const indiceEnMapa = Math.min(index, marcadores.length - 1);
                 if (marcadores[indiceEnMapa]) {
                     marcadores[indiceEnMapa].openPopup();
                 }
+                
+                console.log(`🗺️ Mapa centrado en: ${evento.title}`);
             }
         });
         
@@ -301,6 +368,15 @@ function mostrarEventosEnLista(eventos) {
     });
     
     console.log(`✅ Lista actualizada con ${eventos.length} eventos`);
+}
+
+/**
+ * Aplica todos los filtros activos y actualiza la vista
+ */
+function aplicarTodosFiltros() {
+    const eventosFiltrados = obtenerEventosFiltrados();
+    actualizarVistaEventos(eventosFiltrados, eventosData.length);
+    console.log(`🔍 Filtros aplicados: ${eventosFiltrados.length} eventos mostrados`);
 }
 
 console.log('✅ Módulo de eventos cargado');

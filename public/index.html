@@ -125,6 +125,8 @@
     <main>
         <section class="filtros">
             <h2>Filtrar Eventos</h2>
+            
+            <!-- FILTROS POR FECHA Y PROXIMIDAD -->
             <div class="filtros-contenido">
                 <div class="filtro-grupo">
                     <label for="fechaInicio">Desde:</label>
@@ -148,8 +150,22 @@
                 </div>
                 
                 <div class="filtro-grupo">
-                    <button id="btnAplicarFiltro">Aplicar</button>
-                    <button id="btnLimpiarFiltro">Limpiar</button>
+                    <button id="btnAplicarFiltro">Aplicar Fechas</button>
+                    <button id="btnLimpiarFiltro">Limpiar Filtros</button>
+                </div>
+            </div>
+            
+            <!-- FILTROS POR TIPO Y ESTADO DE EVENTOS -->
+            <div class="filtros-avanzados">
+                <div class="filtro-grupo-inline">
+                    <label for="selectTipoEvento">🌐 Tipo de Evento:</label>
+                    <select id="selectTipoEvento">
+                        <option value="">Todos los eventos</option>
+                    </select>
+                </div>
+                
+                <div class="filtro-grupo-botones" id="botonesEventos">
+                    <!-- Los botones se añaden dinámicamente aquí -->
                 </div>
             </div>
             
@@ -174,9 +190,6 @@
             <h2>Mapa de Eventos</h2>
             <div class="controles-mapa">
                 <button id="btnCentrarMapa">🌍 Centrar Mapa</button>
-                <select id="selectTipoEvento">
-                    <option value="">Todos los eventos</option>
-                </select>
             </div>
             <div id="map">
                 <div class="mapa-cargando">
@@ -197,38 +210,34 @@
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" 
             crossorigin=""></script>
     
-    <!-- Nuestro script con sistema de autenticación
-    <script src="./js/auth.js"></script>
-    <script src="./js/script.js"></script>
-    -->
     <!-- Sistema de autenticación (debe ir primero) -->
     <script src="./js/auth.js"></script>
 
-    <!-- Configuración global (debe ir primero de los nuevos) -->
+    <!-- Configuración global -->
     <script src="./js/config.js"></script>
 
-    <!-- Utilidades (no tiene dependencias específicas) -->
+    <!-- Utilidades -->
     <script src="./js/utils.js"></script>
 
-    <!-- API (depende de config y utils) -->
+    <!-- API -->
     <script src="./js/api.js"></script>
 
-    <!-- Geolocalización (depende de config, utils y api) -->
+    <!-- Geolocalización -->
     <script src="./js/geolocation.js"></script>
 
-    <!-- Favoritos (depende de config y utils) -->
+    <!-- Favoritos -->
     <script src="./js/favorites.js"></script>
 
-    <!-- Mapa (depende de config, utils y favorites) -->
+    <!-- Mapa -->
     <script src="./js/map.js"></script>
 
-    <!-- Eventos (depende de todos los anteriores) -->
+    <!-- Eventos -->
     <script src="./js/events.js"></script>
 
-    <!-- Interfaz de usuario (depende de todos los anteriores) -->
+    <!-- Interfaz de usuario -->
     <script src="./js/ui.js"></script>
 
-    <!-- Inicialización principal (debe ir al final) -->
+    <!-- Inicialización principal -->
     <script src="./js/main.js"></script>
 </body>
 </html>
