@@ -139,15 +139,6 @@ function agregarBotonesEventos() {
     // Limpiar contenido existente
     contenedorBotones.innerHTML = '';
     
-    // Botón: Más Eventos Activos
-    const btnTodosActivos = document.createElement('button');
-    btnTodosActivos.id = 'btnTodosEventosActivos';
-    btnTodosActivos.innerHTML = '⚡ Más Eventos Activos';
-    btnTodosActivos.classList.add('btn-optimizado');
-    btnTodosActivos.title = 'Cargar todos los eventos activos disponibles';
-    btnTodosActivos.addEventListener('click', cargarTodosLosEventosActivos);
-    contenedorBotones.appendChild(btnTodosActivos);
-    
     // Botón: Ver Eventos Cerrados
     const btnCerrados = document.createElement('button');
     btnCerrados.id = 'btnEventosCerrados';
@@ -157,7 +148,7 @@ function agregarBotonesEventos() {
     btnCerrados.addEventListener('click', cargarEventosCerrados);
     contenedorBotones.appendChild(btnCerrados);
     
-    console.log('✅ Botones de eventos agregados a la sección de filtros');
+    console.log('✅ Botón de eventos agregado a la sección de filtros');
 }
 
 /**

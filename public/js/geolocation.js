@@ -114,7 +114,7 @@ function agregarMarcadorUsuario() {
 }
 
 /**
- * Filtra eventos por proximidad al usuario usando optimización
+ * Filtra eventos por proximidad al usuario
  * @param {Array} eventos - Array de eventos
  * @param {Object} ubicacionUsuario - Ubicación del usuario
  * @param {number} radioKm - Radio en kilómetros
@@ -122,11 +122,11 @@ function agregarMarcadorUsuario() {
  */
 function filtrarEventosPorProximidadOptimizado(eventos, ubicacionUsuario, radioKm) {
     if (!ubicacionUsuario) {
-        return eventos.slice(0, limiteEventosIniciales);
+        // Si no hay ubicación, devolver todos los eventos
+        return eventos;
     }
     
     const eventosValidos = [];
-    let contadorProcesados = 0;
     
     for (const evento of eventos) {
         if (!evento.geometry?.[0]?.coordinates || evento.geometry[0].coordinates.length < 2) {
@@ -152,11 +152,9 @@ function filtrarEventosPorProximidadOptimizado(eventos, ubicacionUsuario, radioK
         if (distancia <= radioKm) {
             eventosValidos.push(evento);
         }
-        
-        contadorProcesados++;
-        if (contadorProcesados >= limiteEventosIniciales * 2) break;
     }
     
+    console.log(`📍 ${eventosValidos.length} eventos encontrados dentro de ${radioKm}km`);
     return eventosValidos;
 }
 

@@ -13,7 +13,6 @@ let radioProximidad = 10000;
 // Variables para optimización
 let cacheEventos = new Map();
 let soloEventosActivos = true;
-let limiteEventosIniciales = 50;
 let debounceTimer = null;
 
 // Configuración de iconos basada en categorías reales de NASA EONET

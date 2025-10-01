@@ -30,16 +30,17 @@ function actualizarVistaEventos(eventos, mostrarTotal = null) {
  */
 async function cargarEventosCercanosActivos() {
     try {
-        mostrarEstadoCarga('Buscando eventos activos cercanos...');
+        mostrarEstadoCarga('Buscando todos los eventos activos cercanos...');
         
-        const eventosActivos = await obtenerEventosDeAPI(true, limiteEventosIniciales);
+        // Cargar TODOS los eventos activos sin límite
+        const eventosActivos = await obtenerEventosDeAPI(true, null);
         
         if (!eventosActivos || eventosActivos.length === 0) {
             mostrarError('No se encontraron eventos activos o la API no responde.');
             return;
         }
         
-        console.log(`⚡ API optimizada: ${eventosActivos.length} eventos activos obtenidos`);
+        console.log(`⚡ ${eventosActivos.length} eventos activos obtenidos de la API`);
         
         // Guardar todos los eventos disponibles
         todoEventosData = eventosActivos;
@@ -83,9 +84,10 @@ async function cargarEventosCercanosActivos() {
  */
 async function cargarEventosActivosIniciales() {
     try {
-        mostrarEstadoCarga('Cargando eventos activos globales...');
+        mostrarEstadoCarga('Cargando todos los eventos activos globales...');
         
-        const eventosActivos = await obtenerEventosDeAPI(true, limiteEventosIniciales);
+        // Cargar TODOS los eventos activos sin límite
+        const eventosActivos = await obtenerEventosDeAPI(true, null);
         
         if (eventosActivos && eventosActivos.length > 0) {
             eventosData = eventosActivos;
@@ -94,7 +96,7 @@ async function cargarEventosActivosIniciales() {
             // Actualizar vista con sincronización completa
             actualizarVistaEventos(eventosActivos);
             
-            console.log(`⚡ Carga inicial ultrarrápida: ${eventosActivos.length} eventos activos`);
+            console.log(`⚡ Carga inicial completa: ${eventosActivos.length} eventos activos`);
         } else {
             mostrarError('No se encontraron eventos activos o la API no responde.');
         }

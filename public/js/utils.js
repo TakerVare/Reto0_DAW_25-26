@@ -40,16 +40,14 @@ function validarFechas() {
 }
 
 /**
- * Inicializa las fechas por defecto (últimos 14 días)
+ * Inicializa las fechas (sin valores por defecto)
  */
 function inicializarFechas() {
-    const fechaInicio = new Date();
-    fechaInicio.setDate(fechaInicio.getDate() - 14);
-    document.getElementById("fechaInicio").value = fechaInicio.toISOString().slice(0, 10);
+    // Los campos de fecha quedan vacíos por defecto
+    document.getElementById("fechaInicio").value = '';
+    document.getElementById("fechaFin").value = '';
     
-    const fechaFin = new Date();
-    fechaFin.setHours(23, 59, 59, 999);
-    document.getElementById("fechaFin").value = fechaFin.toISOString().slice(0, 10);
+    console.log('✅ Campos de fecha inicializados sin valores por defecto');
 }
 
 /**
