@@ -13,10 +13,30 @@ function inicializarMapa() {
             minZoom: 2
         }).addTo(map);
         
+        // Eliminar mensaje de carga después de que el mapa esté listo
+        const mensajeCarga = document.querySelector('.mapa-cargando');
+        if (mensajeCarga) {
+            // Añadir una pequeña animación de fade out
+            mensajeCarga.style.transition = 'opacity 0.3s ease-out';
+            mensajeCarga.style.opacity = '0';
+            
+            setTimeout(() => {
+                mensajeCarga.remove();
+            }, 300);
+        }
+        
         console.log('✅ Mapa inicializado correctamente');
     } catch (error) {
         console.error('❌ Error inicializando el mapa:', error);
         mostrarError('Error al inicializar el mapa. Verifica tu conexión a internet.');
+        
+        // Cambiar el mensaje de carga a error
+        const mensajeCarga = document.querySelector('.mapa-cargando');
+        if (mensajeCarga) {
+            mensajeCarga.innerHTML = '<p>❌ Error al cargar el mapa</p>';
+            mensajeCarga.style.background = 'rgba(248, 215, 218, 0.95)';
+            mensajeCarga.style.color = '#721c24';
+        }
     }
 }
 
