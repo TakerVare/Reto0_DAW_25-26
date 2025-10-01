@@ -126,12 +126,35 @@
         <section class="filtros">
             <h2>Filtrar Eventos</h2>
             <div class="filtros-contenido">
-                <label for="fechaInicio">Desde:</label>
-                <input type="date" id="fechaInicio">
-                <label for="fechaFin">Hasta:</label>
-                <input type="date" id="fechaFin">
-                <button id="btnAplicarFiltro">Aplicar</button>
-                <button id="btnLimpiarFiltro">Limpiar</button>
+                <div class="filtro-grupo">
+                    <label for="fechaInicio">Desde:</label>
+                    <input type="date" id="fechaInicio">
+                </div>
+                
+                <div class="filtro-grupo">
+                    <label for="fechaFin">Hasta:</label>
+                    <input type="date" id="fechaFin">
+                </div>
+                
+                <div class="filtro-grupo">
+                    <label for="radioProximidad">📍 Radio (km):</label>
+                    <select id="radioProximidad">
+                        <option value="5000">5,000 km</option>
+                        <option value="10000" selected>10,000 km</option>
+                        <option value="15000">15,000 km</option>
+                        <option value="20000">20,000 km</option>
+                        <option value="999999">🌍 Global</option>
+                    </select>
+                </div>
+                
+                <div class="filtro-grupo">
+                    <button id="btnAplicarFiltro">Aplicar</button>
+                    <button id="btnLimpiarFiltro">Limpiar</button>
+                </div>
+            </div>
+            
+            <div id="infoUbicacion" class="info-ubicacion" style="display: none;">
+                <span id="textoUbicacion"></span>
             </div>
         </section>
 
