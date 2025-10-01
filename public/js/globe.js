@@ -66,6 +66,17 @@ function inicializarGlobo3D() {
 
         console.log('✅ Globo 3D inicializado correctamente');
         
+        // Eliminar mensaje de carga
+        const mensajeCarga = contenedor.querySelector('.globo-cargando');
+        if (mensajeCarga) {
+            mensajeCarga.style.transition = 'opacity 0.5s ease-out';
+            mensajeCarga.style.opacity = '0';
+            setTimeout(() => {
+                mensajeCarga.remove();
+                console.log('✅ Mensaje de carga del globo eliminado');
+            }, 500);
+        }
+        
         // Iniciar animación
         animarGlobo();
         
@@ -73,6 +84,15 @@ function inicializarGlobo3D() {
     } catch (error) {
         console.error('❌ Error inicializando globo 3D:', error);
         mostrarError('Error al inicializar el globo 3D');
+        
+        // Mostrar error en el mensaje de carga
+        const mensajeCarga = document.querySelector('.globo-cargando');
+        if (mensajeCarga) {
+            mensajeCarga.innerHTML = '❌ Error al cargar el globo 3D';
+            mensajeCarga.style.background = 'rgba(248, 215, 218, 0.95)';
+            mensajeCarga.style.color = '#721c24';
+        }
+        
         return false;
     }
 }
