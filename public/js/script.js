@@ -6,7 +6,7 @@ let marcadores = [];
 let usuarioActual = null; // Se carga desde auth.js
 let favoritosUsuario = []; // Se carga desde auth.js
 let ubicacionUsuario = null;
-let radioProximidad = 1000;
+let radioProximidad = 10000;
 
 // VARIABLES PARA OPTIMIZACIÓN
 let cacheEventos = new Map();
@@ -45,7 +45,7 @@ const API_ENDPOINTS = {
 // ===== INICIALIZACIÓN =====
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Inicializando NASA EONET Tracker (Optimizado con autenticación)...');
-    
+    inicializarFechas();
     inicializarMapa();
     configurarEventosInterfaz();
     inicializarUsuarioDesdeAuth(); // Cargar usuario desde auth.js
@@ -53,6 +53,19 @@ document.addEventListener('DOMContentLoaded', function() {
     
     console.log('✅ Aplicación inicializada correctamente');
 });
+
+
+
+// ===== INICIALIZACIÓN DE FECHAS =====
+function inicializarFechas() {
+    const fechaInicio = new Date();
+  fechaInicio.setDate(fechaInicio.getDate() - 14);
+  document.getElementById("fechaInicio").value = fechaInicio.toISOString().slice(0, 10);
+  
+  const fechaFin = new Date();
+  fechaFin.setHours(23, 59, 59, 999);
+  document.getElementById("fechaFin").value = fechaFin.toISOString().slice(0, 10);
+}
 
 // ===== INICIALIZACIÓN DE USUARIO (INTEGRACIÓN CON AUTH.JS) =====
 function inicializarUsuarioDesdeAuth() {
@@ -431,7 +444,7 @@ async function obtenerEventosDeAPI(soloActivos = true, limite = null) {
     }
 }
 
-// ===== FUNCIONES DE MAPEO (SIN CAMBIOS MAYORES) =====
+// ===== FUNCIONES DE MAPEO =====
 function inicializarMapa() {
     try {
         map = L.map('map').setView([20, 0], 2);
