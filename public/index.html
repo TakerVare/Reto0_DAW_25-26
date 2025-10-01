@@ -197,8 +197,38 @@
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" 
             crossorigin=""></script>
     
-    <!-- Nuestro script con sistema de autenticación -->
+    <!-- Nuestro script con sistema de autenticación
     <script src="./js/auth.js"></script>
     <script src="./js/script.js"></script>
+    -->
+    <!-- Sistema de autenticación (debe ir primero) -->
+    <script src="./js/auth.js"></script>
+
+    <!-- Configuración global (debe ir primero de los nuevos) -->
+    <script src="./js/config.js"></script>
+
+    <!-- Utilidades (no tiene dependencias específicas) -->
+    <script src="./js/utils.js"></script>
+
+    <!-- API (depende de config y utils) -->
+    <script src="./js/api.js"></script>
+
+    <!-- Geolocalización (depende de config, utils y api) -->
+    <script src="./js/geolocation.js"></script>
+
+    <!-- Favoritos (depende de config y utils) -->
+    <script src="./js/favorites.js"></script>
+
+    <!-- Mapa (depende de config, utils y favorites) -->
+    <script src="./js/map.js"></script>
+
+    <!-- Eventos (depende de todos los anteriores) -->
+    <script src="./js/events.js"></script>
+
+    <!-- Interfaz de usuario (depende de todos los anteriores) -->
+    <script src="./js/ui.js"></script>
+
+    <!-- Inicialización principal (debe ir al final) -->
+    <script src="./js/main.js"></script>
 </body>
 </html>
