@@ -188,9 +188,19 @@
 
         <section class="mapa">
             <h2>Mapa de Eventos</h2>
+            
+            <!-- CONTROLES DEL MAPA (Ejercicio 8: Capas) -->
             <div class="controles-mapa">
-                <button id="btnCentrarMapa">🌍 Centrar Mapa</button>
+                <div class="controles-grupo">
+                    <button id="btnCentrarMapa">🌍 Centrar Mapa</button>
+                </div>
+                
+                <!-- Ejercicio 8: Selector de Capas del Mapa -->
+                <div class="controles-grupo" id="controlesCapas">
+                    <!-- Los botones de capas se añaden dinámicamente aquí -->
+                </div>
             </div>
+            
             <div id="map">
                 <div class="mapa-cargando">
                     <p>🛰️ Inicializando mapa...</p>
@@ -201,7 +211,7 @@
 
     <footer>
         <p>Desarrollado con datos de NASA EONET 🚀 | © 2024 | 
-           <small>Sistema de autenticación con usuarios hardcodeados para pruebas</small>
+           <small>Con datos meteorológicos de OpenWeatherMap 🌦️</small>
         </p>
     </footer>
 

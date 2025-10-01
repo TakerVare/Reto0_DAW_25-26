@@ -12,8 +12,14 @@ let radioProximidad = 10000;
 
 // Variables para optimización
 let cacheEventos = new Map();
+let cacheClima = new Map(); // Caché para datos meteorológicos
 let soloEventosActivos = true;
+let limiteEventosIniciales = 50;
 let debounceTimer = null;
+
+// Variables para gestión de capas del mapa
+let capaBaseActual = null;
+let capasBase = {};
 
 // Configuración de iconos basada en categorías reales de NASA EONET
 const configuracionEventos = {
@@ -40,7 +46,49 @@ const API_ENDPOINTS = {
         eventosActivos: 'https://eonet.gsfc.nasa.gov/api/v3/events?status=open',
         eventosCerrados: 'https://eonet.gsfc.nasa.gov/api/v3/events?status=closed',
         categorias: 'https://eonet.gsfc.nasa.gov/api/v3/categories'
+    },
+    // API Meteorológica - OpenWeatherMap (requiere API key gratuita)
+    clima: {
+        base: 'https://api.openweathermap.org/data/2.5/weather',
+        // IMPORTANTE: Obtén tu API key gratuita en https://openweathermap.org/api
+        apiKey: 'TU_API_KEY_AQUI', // ⚠️ Reemplazar con tu API key
+        // Para pruebas sin API key, usaremos modo demo
+        usarDemo: true // Cambiar a false cuando tengas API key real
     }
 };
 
-console.log('✅ Configuración global cargada');
+// Configuración de capas base del mapa (Ejercicio 8)
+const CAPAS_MAPA = {
+    openstreetmap: {
+        nombre: '🗺️ OpenStreetMap',
+        url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+    },
+    opentopomap: {
+        nombre: '⛰️ OpenTopoMap',
+        url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+        attribution: '© OpenTopoMap contributors',
+        maxZoom: 17
+    },
+    esrisatellite: {
+        nombre: '🛰️ ESRI Satellite',
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        attribution: '© ESRI',
+        maxZoom: 18
+    },
+    cartodbdark: {
+        nombre: '🌙 CartoDB Dark',
+        url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+        attribution: '© CartoDB',
+        maxZoom: 19
+    },
+    stadiaosmbright: {
+        nombre: '🌞 Stadia Bright',
+        url: 'https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}{r}.png',
+        attribution: '© Stadia Maps © OpenMapTiles',
+        maxZoom: 20
+    }
+};
+
+console.log('✅ Configuración global cargada (con API Clima y Capas)');

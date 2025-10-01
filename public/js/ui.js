@@ -1,4 +1,4 @@
-// ===== INTERFAZ DE USUARIO =====
+// ===== INTERFAZ DE USUARIO CON CONTROLES DE CAPAS =====
 
 /**
  * Configura todos los eventos de la interfaz
@@ -23,7 +23,6 @@ function configurarEventosInterfaz() {
     const selectTipo = document.getElementById('selectTipoEvento');
     if (selectTipo) {
         actualizarOpcionesCategorias(selectTipo);
-        // Ya NO aplicamos el filtro automáticamente al cambiar
         console.log('✅ Selector de tipo de evento configurado (sin auto-aplicar)');
     }
     
@@ -43,7 +42,48 @@ function configurarEventosInterfaz() {
     // Agregar botones de eventos en la sección de filtros
     agregarBotonesEventos();
     
-    console.log('✅ Eventos de interfaz configurados (con filtros unificados)');
+    // Ejercicio 8: Configurar controles de capas del mapa
+    configurarControlesCapas();
+    
+    console.log('✅ Eventos de interfaz configurados (con filtros unificados y capas)');
+}
+
+/**
+ * Configura los controles para cambiar las capas del mapa
+ * Ejercicio 8: Sistema de capas alternativas
+ */
+function configurarControlesCapas() {
+    const contenedorCapas = document.getElementById('controlesCapas');
+    if (!contenedorCapas) {
+        console.warn('⚠️ No se encontró el contenedor de controles de capas');
+        return;
+    }
+    
+    // Limpiar contenido existente
+    contenedorCapas.innerHTML = '<label class="label-capas">🗺️ Tipo de Mapa:</label>';
+    
+    // Crear botón para cada capa disponible
+    Object.keys(CAPAS_MAPA).forEach((capaId, index) => {
+        const capaConfig = CAPAS_MAPA[capaId];
+        
+        const btnCapa = document.createElement('button');
+        btnCapa.className = 'btn-capa';
+        btnCapa.dataset.capa = capaId;
+        btnCapa.textContent = capaConfig.nombre;
+        btnCapa.title = `Cambiar a ${capaConfig.nombre}`;
+        
+        // Marcar la primera capa como activa
+        if (index === 0) {
+            btnCapa.classList.add('active');
+        }
+        
+        // Añadir evento de click
+        btnCapa.addEventListener('click', () => cambiarCapaMapa(capaId));
+        
+        contenedorCapas.appendChild(btnCapa);
+    });
+    
+    console.log(`✅ ${Object.keys(CAPAS_MAPA).length} controles de capas configurados`);
 }
 
 /**
@@ -139,6 +179,15 @@ function agregarBotonesEventos() {
     // Limpiar contenido existente
     contenedorBotones.innerHTML = '';
     
+    // Botón: Más Eventos Activos
+    const btnTodosActivos = document.createElement('button');
+    btnTodosActivos.id = 'btnTodosEventosActivos';
+    btnTodosActivos.innerHTML = '⚡ Más Eventos Activos';
+    btnTodosActivos.classList.add('btn-optimizado');
+    btnTodosActivos.title = 'Cargar todos los eventos activos disponibles';
+    btnTodosActivos.addEventListener('click', cargarTodosLosEventosActivos);
+    contenedorBotones.appendChild(btnTodosActivos);
+    
     // Botón: Ver Eventos Cerrados
     const btnCerrados = document.createElement('button');
     btnCerrados.id = 'btnEventosCerrados';
@@ -148,7 +197,7 @@ function agregarBotonesEventos() {
     btnCerrados.addEventListener('click', cargarEventosCerrados);
     contenedorBotones.appendChild(btnCerrados);
     
-    console.log('✅ Botón de eventos agregado a la sección de filtros');
+    console.log('✅ Botones de eventos agregados a la sección de filtros');
 }
 
 /**
@@ -244,4 +293,4 @@ function actualizarOpcionesCategorias(selectElement) {
     console.log(`✅ ${categoriasOrdenadas.length} categorías cargadas en el selector`);
 }
 
-console.log('✅ Módulo de interfaz de usuario cargado');
+console.log('✅ Módulo de interfaz de usuario cargado (con controles de capas)');

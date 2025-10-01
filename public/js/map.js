@@ -1,22 +1,32 @@
-// ===== GESTIÓN DEL MAPA =====
+// ===== GESTIÓN DEL MAPA CON CAPAS Y CLIMA =====
 
 /**
- * Inicializa el mapa con Leaflet
+ * Inicializa el mapa con Leaflet y capas base
+ * Ejercicio 8: Sistema de capas alternativas
  */
 function inicializarMapa() {
     try {
         map = L.map('map').setView([20, 0], 2);
         
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 18,
-            minZoom: 2
-        }).addTo(map);
+        // Crear todas las capas base disponibles
+        Object.keys(CAPAS_MAPA).forEach(capaId => {
+            const capaConfig = CAPAS_MAPA[capaId];
+            capasBase[capaId] = L.tileLayer(capaConfig.url, {
+                attribution: capaConfig.attribution,
+                maxZoom: capaConfig.maxZoom,
+                minZoom: 2
+            });
+        });
         
-        // Eliminar mensaje de carga después de que el mapa esté listo
+        // Añadir capa por defecto (OpenStreetMap)
+        capasBase['openstreetmap'].addTo(map);
+        capaBaseActual = 'openstreetmap';
+        
+        console.log(`✅ Mapa inicializado con ${Object.keys(capasBase).length} capas disponibles`);
+        
+        // Eliminar mensaje de carga
         const mensajeCarga = document.querySelector('.mapa-cargando');
         if (mensajeCarga) {
-            // Añadir una pequeña animación de fade out
             mensajeCarga.style.transition = 'opacity 0.3s ease-out';
             mensajeCarga.style.opacity = '0';
             
@@ -25,12 +35,10 @@ function inicializarMapa() {
             }, 300);
         }
         
-        console.log('✅ Mapa inicializado correctamente');
     } catch (error) {
         console.error('❌ Error inicializando el mapa:', error);
         mostrarError('Error al inicializar el mapa. Verifica tu conexión a internet.');
         
-        // Cambiar el mensaje de carga a error
         const mensajeCarga = document.querySelector('.mapa-cargando');
         if (mensajeCarga) {
             mensajeCarga.innerHTML = '<p>❌ Error al cargar el mapa</p>';
@@ -38,6 +46,40 @@ function inicializarMapa() {
             mensajeCarga.style.color = '#721c24';
         }
     }
+}
+
+/**
+ * Cambia la capa base del mapa
+ * Ejercicio 8: Alternancia entre capas
+ * @param {string} capaId - Identificador de la capa
+ */
+function cambiarCapaMapa(capaId) {
+    if (!capasBase[capaId]) {
+        console.error(`❌ Capa no encontrada: ${capaId}`);
+        return;
+    }
+    
+    // Remover capa actual
+    if (capaBaseActual && capasBase[capaBaseActual]) {
+        map.removeLayer(capasBase[capaBaseActual]);
+    }
+    
+    // Añadir nueva capa
+    capasBase[capaId].addTo(map);
+    capaBaseActual = capaId;
+    
+    // Actualizar selector visual
+    const botones = document.querySelectorAll('.btn-capa');
+    botones.forEach(btn => {
+        if (btn.dataset.capa === capaId) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    
+    console.log(`🗺️ Capa cambiada a: ${CAPAS_MAPA[capaId].nombre}`);
+    mostrarNotificacion(`Mapa: ${CAPAS_MAPA[capaId].nombre}`, 'info');
 }
 
 /**
@@ -65,11 +107,15 @@ function mostrarEventosEnMapaOptimizado(eventos) {
         const icono = crearIconoEvento(tipoEvento, !evento.closed, esFavorito);
         
         const marcador = L.marker([lat, lng], { icon: icono })
-            .addTo(map)
-            .bindPopup(crearContenidoPopup(evento), {
-                maxWidth: 350,
-                className: 'popup-evento'
-            });
+            .addTo(map);
+        
+        // Crear popup con clima (se carga al abrir)
+        marcador.bindPopup(() => {
+            return crearContenidoPopupConClima(evento, lat, lng);
+        }, {
+            maxWidth: 400,
+            className: 'popup-evento'
+        });
         
         marcadores.push(marcador);
         
@@ -128,11 +174,14 @@ function crearIconoEvento(tipoEvento, esAbierto = true, esFavorito = false) {
 }
 
 /**
- * Crea el contenido HTML para el popup de un evento
+ * Crea el contenido HTML para el popup con datos del clima
+ * Ejercicio 7: Integración con API meteorológica
  * @param {Object} evento - Objeto del evento
- * @returns {string} HTML del popup
+ * @param {number} lat - Latitud
+ * @param {number} lng - Longitud
+ * @returns {HTMLElement} Elemento del popup
  */
-function crearContenidoPopup(evento) {
+function crearContenidoPopupConClima(evento, lat, lng) {
     const categoria = evento.categories && evento.categories.length > 0 
         ? evento.categories[0] 
         : { title: 'Sin categoría', id: 'default' };
@@ -149,63 +198,221 @@ function crearContenidoPopup(evento) {
     const esFavorito = favoritosUsuario.includes(evento.id);
     const iconoFavorito = esFavorito ? '⭐' : '☆';
     
-    return `
-        <div class="popup-contenido">
-            <div class="popup-header">
-                <h3 style="margin: 0; color: ${config.color}; flex: 1;">
-                    ${config.emoji} ${evento.title}
-                </h3>
-                ${usuarioActual ? `
-                    <button class="btn-favorito" onclick="toggleFavorito('${evento.id}', '${evento.title.replace(/'/g, "\\'")}')">
-                        ${iconoFavorito}
-                    </button>
-                ` : `
-                    <button class="btn-favorito" onclick="abrirModalAuth()">
-                        ☆
-                    </button>
-                `}
+    // Crear contenedor del popup
+    const contenedor = document.createElement('div');
+    contenedor.className = 'popup-contenido';
+    contenedor.innerHTML = `
+        <div class="popup-header">
+            <h3 style="margin: 0; color: ${config.color}; flex: 1;">
+                ${config.emoji} ${evento.title}
+            </h3>
+            ${usuarioActual ? `
+                <button class="btn-favorito" onclick="toggleFavorito('${evento.id}', '${evento.title.replace(/'/g, "\\'")}')">
+                    ${iconoFavorito}
+                </button>
+            ` : `
+                <button class="btn-favorito" onclick="abrirModalAuth()">
+                    ☆
+                </button>
+            `}
+        </div>
+        
+        <div class="info-basica">
+            <p><strong>📋 Categoría:</strong> ${categoria.title}</p>
+            <p><strong>📅 Fecha:</strong> ${fechaGeometria}</p>
+            <p><strong>🔄 Estado:</strong> 
+                <span style="color: ${evento.closed ? '#dc3545' : '#28a745'};">
+                    ${evento.closed ? '❌ Cerrado' : '✅ Abierto'}
+                </span>
+            </p>
+            <p><strong>🆔 ID NASA:</strong> ${evento.id}</p>
+        </div>
+        
+        ${evento.description ? `
+            <div class="descripcion">
+                <p><strong>📝 Descripción:</strong></p>
+                <p style="font-style: italic;">${evento.description}</p>
             </div>
-            
-            <div class="info-basica">
-                <p><strong>📋 Categoría:</strong> ${categoria.title}</p>
-                <p><strong>📅 Fecha:</strong> ${fechaGeometria}</p>
-                <p><strong>🔄 Estado:</strong> 
-                    <span style="color: ${evento.closed ? '#dc3545' : '#28a745'};">
-                        ${evento.closed ? '❌ Cerrado' : '✅ Abierto'}
-                    </span>
+        ` : ''}
+        
+        <div class="coordenadas">
+            <p><strong>🌍 Coordenadas:</strong> 
+                ${evento.geometry[0].coordinates[1].toFixed(4)}, 
+                ${evento.geometry[0].coordinates[0].toFixed(4)}
+            </p>
+            ${evento.geometry[0].magnitudeValue ? `
+                <p><strong>📊 Magnitud:</strong> 
+                    ${evento.geometry[0].magnitudeValue} ${evento.geometry[0].magnitudeUnit || ''}
                 </p>
-                <p><strong>🆔 ID NASA:</strong> ${evento.id}</p>
-            </div>
-            
-            ${evento.description ? `
-                <div class="descripcion">
-                    <p><strong>📝 Descripción:</strong></p>
-                    <p style="font-style: italic;">${evento.description}</p>
-                </div>
-            ` : ''}
-            
-            <div class="coordenadas">
-                <p><strong>🌍 Coordenadas:</strong> 
-                    ${evento.geometry[0].coordinates[1].toFixed(4)}, 
-                    ${evento.geometry[0].coordinates[0].toFixed(4)}
-                </p>
-                ${evento.geometry[0].magnitudeValue ? `
-                    <p><strong>📊 Magnitud:</strong> 
-                        ${evento.geometry[0].magnitudeValue} ${evento.geometry[0].magnitudeUnit || ''}
-                    </p>
-                ` : ''}
-            </div>
-            
-            ${evento.sources && evento.sources.length > 0 ? `
-                <div class="fuentes">
-                    <p><strong>🔗 Fuentes NASA:</strong></p>
-                    ${evento.sources.map(source => 
-                        `<a href="${source.url}" target="_blank" rel="noopener">${source.id || 'Ver más información'}</a>`
-                    ).join('<br>')}
-                </div>
             ` : ''}
         </div>
+        
+        <!-- SECCIÓN DE CLIMA (Ejercicio 7) -->
+        <div class="clima-info" id="clima-${evento.id}">
+            <div style="text-align: center; padding: 1rem; color: #666;">
+                <span class="spinner-clima">⏳ Cargando clima...</span>
+            </div>
+        </div>
+        
+        ${evento.sources && evento.sources.length > 0 ? `
+            <div class="fuentes">
+                <p><strong>🔗 Fuentes NASA:</strong></p>
+                ${evento.sources.map(source => 
+                    `<a href="${source.url}" target="_blank" rel="noopener">${source.id || 'Ver más información'}</a>`
+                ).join('<br>')}
+            </div>
+        ` : ''}
     `;
+    
+    // Cargar datos del clima de forma asíncrona
+    cargarClimaEnPopup(evento.id, lat, lng);
+    
+    return contenedor;
+}
+
+/**
+ * Carga los datos del clima en el popup de forma asíncrona
+ * @param {string} eventoId - ID del evento
+ * @param {number} lat - Latitud
+ * @param {number} lng - Longitud
+ */
+async function cargarClimaEnPopup(eventoId, lat, lng) {
+    try {
+        const climaContainer = document.getElementById(`clima-${eventoId}`);
+        if (!climaContainer) return;
+        
+        // Obtener datos del clima
+        const clima = await obtenerClimaActual(lat, lng);
+        
+        if (clima.error) {
+            climaContainer.innerHTML = `
+                <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 0.75rem; margin: 0.5rem 0;">
+                    <p style="margin: 0; color: #856404; font-size: 0.9rem;">
+                        ⚠️ ${clima.mensaje}
+                    </p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Mostrar datos del clima
+        climaContainer.innerHTML = `
+            <div class="clima-card">
+                <div class="clima-header">
+                    <h4 style="margin: 0.5rem 0; color: #00274d;">
+                        🌦️ Clima Actual ${clima.esDemo ? '(Demo)' : ''}
+                    </h4>
+                    ${clima.nombreLugar && clima.nombreLugar !== 'Demo Location' ? 
+                        `<p style="margin: 0; font-size: 0.85rem; color: #666;">${clima.nombreLugar}, ${clima.pais}</p>` 
+                        : ''
+                    }
+                </div>
+                
+                <div class="clima-principal">
+                    <div class="clima-temp">
+                        <span class="temp-grande">${clima.iconoEmoji} ${clima.temperatura}°C</span>
+                        <span class="temp-descripcion">${clima.descripcion}</span>
+                    </div>
+                    <div class="clima-sensacion">
+                        Sensación térmica: ${clima.sensacionTermica}°C
+                    </div>
+                </div>
+                
+                <div class="clima-detalles">
+                    <div class="clima-detalle">
+                        <span class="detalle-icono">🌡️</span>
+                        <span class="detalle-texto">
+                            Min/Max: ${clima.temperaturaMin}°C / ${clima.temperaturaMax}°C
+                        </span>
+                    </div>
+                    
+                    <div class="clima-detalle">
+                        <span class="detalle-icono">💧</span>
+                        <span class="detalle-texto">
+                            Humedad: ${clima.humedad}%
+                        </span>
+                    </div>
+                    
+                    <div class="clima-detalle">
+                        <span class="detalle-icono">🌪️</span>
+                        <span class="detalle-texto">
+                            Viento: ${clima.vientoVelocidad} km/h ${obtenerDireccionViento(clima.vientoDireccion)}
+                        </span>
+                    </div>
+                    
+                    <div class="clima-detalle">
+                        <span class="detalle-icono">☁️</span>
+                        <span class="detalle-texto">
+                            Nubosidad: ${clima.nubosidad}%
+                        </span>
+                    </div>
+                    
+                    ${clima.presion ? `
+                        <div class="clima-detalle">
+                            <span class="detalle-icono">🔽</span>
+                            <span class="detalle-texto">
+                                Presión: ${clima.presion} hPa
+                            </span>
+                        </div>
+                    ` : ''}
+                    
+                    ${clima.visibilidad ? `
+                        <div class="clima-detalle">
+                            <span class="detalle-icono">👁️</span>
+                            <span class="detalle-texto">
+                                Visibilidad: ${clima.visibilidad} km
+                            </span>
+                        </div>
+                    ` : ''}
+                    
+                    ${clima.lluvia ? `
+                        <div class="clima-detalle">
+                            <span class="detalle-icono">🌧️</span>
+                            <span class="detalle-texto">
+                                Lluvia: ${clima.lluvia} mm
+                            </span>
+                        </div>
+                    ` : ''}
+                    
+                    ${clima.nieve ? `
+                        <div class="clima-detalle">
+                            <span class="detalle-icono">❄️</span>
+                            <span class="detalle-texto">
+                                Nieve: ${clima.nieve} mm
+                            </span>
+                        </div>
+                    ` : ''}
+                </div>
+                
+                ${clima.esDemo ? `
+                    <div style="background: #e3f2fd; border: 1px solid #2196f3; border-radius: 6px; padding: 0.5rem; margin-top: 0.5rem;">
+                        <p style="margin: 0; color: #1565c0; font-size: 0.8rem; text-align: center;">
+                            💡 Datos de demostración. Configura tu API key en config.js para datos reales.
+                        </p>
+                    </div>
+                ` : ''}
+                
+                <div style="margin-top: 0.5rem; text-align: center; font-size: 0.75rem; color: #999;">
+                    Última actualización: ${clima.timestamp.toLocaleTimeString('es-ES')}
+                </div>
+            </div>
+        `;
+        
+        console.log(`✅ Clima cargado en popup del evento ${eventoId}`);
+        
+    } catch (error) {
+        console.error('❌ Error cargando clima en popup:', error);
+        const climaContainer = document.getElementById(`clima-${eventoId}`);
+        if (climaContainer) {
+            climaContainer.innerHTML = `
+                <div style="background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 6px; padding: 0.75rem;">
+                    <p style="margin: 0; color: #721c24; font-size: 0.9rem;">
+                        ❌ Error cargando datos del clima
+                    </p>
+                </div>
+            `;
+        }
+    }
 }
 
 /**
@@ -229,4 +436,4 @@ function centrarMapa() {
     }
 }
 
-console.log('✅ Módulo de mapa cargado');
+console.log('✅ Módulo de mapa cargado (con capas y clima)');
