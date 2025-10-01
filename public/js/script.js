@@ -54,17 +54,15 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('✅ Aplicación inicializada correctamente');
 });
 
-
-
 // ===== INICIALIZACIÓN DE FECHAS =====
 function inicializarFechas() {
     const fechaInicio = new Date();
-  fechaInicio.setDate(fechaInicio.getDate() - 14);
-  document.getElementById("fechaInicio").value = fechaInicio.toISOString().slice(0, 10);
-  
-  const fechaFin = new Date();
-  fechaFin.setHours(23, 59, 59, 999);
-  document.getElementById("fechaFin").value = fechaFin.toISOString().slice(0, 10);
+    fechaInicio.setDate(fechaInicio.getDate() - 14);
+    document.getElementById("fechaInicio").value = fechaInicio.toISOString().slice(0, 10);
+    
+    const fechaFin = new Date();
+    fechaFin.setHours(23, 59, 59, 999);
+    document.getElementById("fechaFin").value = fechaFin.toISOString().slice(0, 10);
 }
 
 // ===== INICIALIZACIÓN DE USUARIO (INTEGRACIÓN CON AUTH.JS) =====
@@ -135,15 +133,14 @@ async function toggleFavorito(eventoId, titulo) {
 
 // Actualizar toda la vista con los favoritos actualizados
 function actualizarVistaFavoritos() {
-    // Actualizar contador
-    actualizarContadorEventosOptimizado(eventosData.length);
+    // Obtener eventos filtrados actuales
+    const eventosFiltrados = obtenerEventosFiltrados();
+    
+    // Actualizar contador y lista
+    actualizarContadorEventosOptimizado(eventosFiltrados.length, eventosFiltrados);
     
     // Actualizar mapa
-    const eventosFiltrados = obtenerEventosFiltrados();
     mostrarEventosEnMapaOptimizado(eventosFiltrados);
-    
-    // Actualizar lista
-    mostrarEventosEnLista(eventosFiltrados);
 }
 
 // Obtener eventos filtrados según el select de tipo
@@ -193,7 +190,7 @@ function mostrarAlerta(mensaje, tipo = 'info') {
     alert(mensaje); // Fallback simple
 }
 
-// ===== CARGA DE EVENTOS (SIN CAMBIOS MAYORES) =====
+// ===== CARGA DE EVENTOS =====
 async function obtenerUbicacionUsuario() {
     try {
         mostrarEstadoCarga('Obteniendo tu ubicación para eventos cercanos...');
@@ -307,8 +304,7 @@ async function cargarEventosCercanosActivos() {
         }
         
         mostrarEventosEnMapaOptimizado(eventosData);
-        mostrarEventosEnLista(eventosData);
-        actualizarContadorEventosOptimizado(eventosData.length, eventosActivos.length);
+        actualizarContadorEventosOptimizado(eventosData.length, eventosData, eventosActivos.length);
         
     } catch (error) {
         console.error('❌ Error cargando eventos cercanos activos:', error);
@@ -327,8 +323,7 @@ async function cargarEventosActivosIniciales() {
             todoEventosData = eventosActivos;
             
             mostrarEventosEnMapaOptimizado(eventosActivos);
-            mostrarEventosEnLista(eventosActivos);
-            actualizarContadorEventosOptimizado(eventosActivos.length);
+            actualizarContadorEventosOptimizado(eventosActivos.length, eventosActivos);
             
             console.log(`⚡ Carga inicial ultrarrápida: ${eventosActivos.length} eventos activos`);
         } else {
@@ -750,8 +745,7 @@ async function cargarTodosLosEventosActivos() {
         eventosData = todosEventosActivos;
         
         mostrarEventosEnMapaOptimizado(eventosData);
-        mostrarEventosEnLista(eventosData);
-        actualizarContadorEventosOptimizado(eventosData.length);
+        actualizarContadorEventosOptimizado(eventosData.length, eventosData);
         
         console.log(`✅ Cargados todos los eventos activos: ${eventosData.length}`);
     } catch (error) {
@@ -772,8 +766,7 @@ async function cargarEventosCerrados() {
         eventosData = eventosCompletos;
         
         mostrarEventosEnMapaOptimizado(eventosData);
-        mostrarEventosEnLista(eventosData);
-        actualizarContadorEventosOptimizado(eventosData.length);
+        actualizarContadorEventosOptimizado(eventosData.length, eventosData);
         
         console.log(`✅ Añadidos ${soloEventosCerrados.length} eventos cerrados`);
     } catch (error) {
@@ -829,8 +822,7 @@ function aplicarFiltroFechas() {
     });
     
     mostrarEventosEnMapaOptimizado(eventosFiltrados);
-    mostrarEventosEnLista(eventosFiltrados);
-    actualizarContadorEventosOptimizado(eventosFiltrados.length, eventosData.length);
+    actualizarContadorEventosOptimizado(eventosFiltrados.length, eventosFiltrados, eventosData.length);
 }
 
 function limpiarFiltros() {
@@ -839,8 +831,7 @@ function limpiarFiltros() {
     document.getElementById('selectTipoEvento').value = '';
     
     mostrarEventosEnMapaOptimizado(eventosData);
-    mostrarEventosEnLista(eventosData);
-    actualizarContadorEventosOptimizado(eventosData.length);
+    actualizarContadorEventosOptimizado(eventosData.length, eventosData);
 }
 
 function filtrarPorTipoEvento() {
@@ -848,8 +839,7 @@ function filtrarPorTipoEvento() {
     
     if (!tipoSeleccionado) {
         mostrarEventosEnMapaOptimizado(eventosData);
-        mostrarEventosEnLista(eventosData);
-        actualizarContadorEventosOptimizado(eventosData.length);
+        actualizarContadorEventosOptimizado(eventosData.length, eventosData);
         return;
     }
     
@@ -858,30 +848,39 @@ function filtrarPorTipoEvento() {
     });
     
     mostrarEventosEnMapaOptimizado(eventosFiltrados);
-    mostrarEventosEnLista(eventosFiltrados);
-    actualizarContadorEventosOptimizado(eventosFiltrados.length, eventosData.length);
+    actualizarContadorEventosOptimizado(eventosFiltrados.length, eventosFiltrados, eventosData.length);
 }
 
-function actualizarContadorEventosOptimizado(mostrados, total = null) {
+// ===== ACTUALIZACIÓN DE CONTADOR OPTIMIZADA CON ACTUALIZACIÓN DE LISTA =====
+function actualizarContadorEventosOptimizado(mostrados, eventosActuales = null, total = null) {
     const contador = document.getElementById('contadorEventos');
-    if (contador) {
-        const favoritosCount = eventosData.filter(e => favoritosUsuario.includes(e.id)).length;
-        
-        let texto;
-        if (total && total > mostrados) {
-            texto = `📊 ${mostrados} de ${total} eventos`;
-        } else if (ubicacionUsuario && todoEventosData.length > 0 && mostrados < todoEventosData.length) {
-            texto = `📍 ${mostrados} eventos cercanos de ${todoEventosData.length} totales`;
-        } else {
-            texto = `⚡ ${mostrados} eventos ${soloEventosActivos ? 'activos' : ''}`;
-        }
-        
-        if (favoritosCount > 0) {
-            texto += ` | ⭐ ${favoritosCount} favoritos`;
-        }
-        
-        contador.innerHTML = `<span>${texto}</span>`;
+    if (!contador) return;
+    
+    // Si se proporciona eventosActuales, actualizar la lista
+    if (eventosActuales && Array.isArray(eventosActuales)) {
+        mostrarEventosEnLista(eventosActuales);
     }
+    
+    // Contar favoritos en los eventos mostrados
+    const eventosMostrados = eventosActuales || eventosData;
+    const favoritosCount = eventosMostrados.filter(e => favoritosUsuario.includes(e.id)).length;
+    
+    let texto;
+    if (total && total > mostrados) {
+        texto = `📊 ${mostrados} de ${total} eventos`;
+    } else if (ubicacionUsuario && todoEventosData.length > 0 && mostrados < todoEventosData.length) {
+        texto = `📍 ${mostrados} eventos cercanos de ${todoEventosData.length} totales`;
+    } else {
+        texto = `⚡ ${mostrados} eventos ${soloEventosActivos ? 'activos' : ''}`;
+    }
+    
+    if (favoritosCount > 0) {
+        texto += ` | ⭐ ${favoritosCount} favoritos`;
+    }
+    
+    contador.innerHTML = `<span>${texto}</span>`;
+    
+    console.log(`🔄 Contador actualizado: ${texto}`);
 }
 
 function actualizarOpcionesCategorias(selectElement) {
@@ -992,6 +991,7 @@ console.log(`
 🔐 Autenticación completa (login/registro)
 ⭐ Favoritos personalizados por usuario
 🎯 4 usuarios de prueba disponibles
+🔄 Sincronización automática contador-lista implementada
 
 Para usar el sistema:
 1. Haz clic en "🔐 Iniciar Sesión" en la esquina superior
