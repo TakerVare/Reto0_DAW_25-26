@@ -4,7 +4,7 @@
  * Inicializa la aplicación NASA EONET Tracker
  */
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Inicializando NASA EONET Tracker (Optimizado con autenticación)...');
+    console.log('🚀 Inicializando NASA EONET Tracker (Optimizado con autenticación y filtros unificados)...');
     
     inicializarFechas();
     inicializarMapa();
@@ -17,34 +17,45 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Mensaje de información de la aplicación
 console.log(`
-🚀 NASA EONET Tracker - Versión con FILTRO DINÁMICO DE RADIO
+🚀 NASA EONET Tracker - Versión con FILTROS UNIFICADOS
 
 ✅ Sistema de usuarios implementado con localStorage
 🔐 Autenticación completa (login/registro)
 ⭐ Favoritos personalizados por usuario
 🎯 4 usuarios de prueba disponibles
 🔄 Sincronización AUTOMÁTICA lista-mapa implementada
-📍 NUEVO: Filtro de Radio de Proximidad dinámico
+📍 Filtro de Radio de Proximidad dinámico
+🔍 NUEVO: Sistema de filtros unificado mejorado
 
-Características del filtro de radio:
-• El listado se actualiza automáticamente al cambiar el radio
-• El zoom del mapa se ajusta según el radio seleccionado
-• Radio global (999999 km) muestra todos los eventos
-• Radios menores filtran por proximidad a tu ubicación
-• Indicador visual del radio actual en el contador
+Características del sistema de filtros:
+• Un único botón "🔍 Aplicar Filtros" para todos los filtros
+• Aplica simultáneamente: fechas + tipo de evento
+• El filtro de radio se mantiene automático (ajusta zoom y proximidad)
+• Validaciones mejoradas de fechas
+• Mensajes informativos al usuario sobre filtros aplicados
+• Botón "🧹 Limpiar Filtros" para resetear todo
 
-Mapeo de Radio → Zoom:
-- Global (999999km): Zoom 2
-- 20,000km: Zoom 4
-- 15,000km: Zoom 5
-- 10,000km: Zoom 6
-- 5,000km: Zoom 7
+Flujo de uso:
+1. Selecciona las fechas (desde/hasta)
+2. Selecciona el tipo de evento (opcional)
+3. Haz clic en "🔍 Aplicar Filtros"
+4. El sistema filtra y sincroniza lista + mapa automáticamente
+
+Filtro de Radio (automático):
+• Se aplica inmediatamente al cambiar
+• Ajusta el zoom del mapa según el radio
+• Radio global (999999km): Zoom 2
+• 20,000km: Zoom 4
+• 15,000km: Zoom 5
+• 10,000km: Zoom 6
+• 5,000km: Zoom 7
 
 Para usar el sistema:
 1. Haz clic en "🔐 Iniciar Sesión" en la esquina superior
 2. Usa uno de los usuarios de prueba o crea uno nuevo
-3. Cambia el radio de proximidad en el filtro
-4. ¡Observa cómo se actualiza todo automáticamente!
+3. Configura los filtros según tus preferencias
+4. Haz clic en "🔍 Aplicar Filtros"
+5. ¡Observa cómo se actualiza todo automáticamente!
 
 Los datos se guardan en localStorage de tu navegador.
 
@@ -56,6 +67,6 @@ Los datos se guardan en localStorage de tu navegador.
 ├── favorites.js - Sistema de favoritos
 ├── map.js - Gestión del mapa Leaflet
 ├── events.js - Carga y filtrado de eventos
-├── ui.js - Interfaz de usuario
+├── ui.js - Interfaz de usuario (con filtros unificados)
 └── main.js - Inicialización principal
 `);

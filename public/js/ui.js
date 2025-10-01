@@ -4,8 +4,12 @@
  * Configura todos los eventos de la interfaz
  */
 function configurarEventosInterfaz() {
-    const btnAplicar = document.getElementById('btnAplicarFiltro');
-    if (btnAplicar) btnAplicar.addEventListener('click', aplicarFiltroFechasOptimizado);
+    // Botón para aplicar todos los filtros (fechas + tipo)
+    const btnAplicar = document.getElementById('btnAplicarFiltros');
+    if (btnAplicar) {
+        btnAplicar.addEventListener('click', aplicarTodosFiltrosUnificado);
+        console.log('✅ Botón "Aplicar Filtros" configurado');
+    }
     
     const btnLimpiar = document.getElementById('btnLimpiarFiltro');
     if (btnLimpiar) btnLimpiar.addEventListener('click', limpiarFiltros);
@@ -15,16 +19,19 @@ function configurarEventosInterfaz() {
         btnCentrar.addEventListener('click', centrarMapa);
     }
     
+    // Cargar opciones de categorías en el select
     const selectTipo = document.getElementById('selectTipoEvento');
     if (selectTipo) {
-        selectTipo.addEventListener('change', filtrarPorTipoEventoOptimizado);
         actualizarOpcionesCategorias(selectTipo);
+        // Ya NO aplicamos el filtro automáticamente al cambiar
+        console.log('✅ Selector de tipo de evento configurado (sin auto-aplicar)');
     }
     
+    // El filtro de radio se mantiene automático por su funcionalidad especial
     const selectRadio = document.getElementById('radioProximidad');
     if (selectRadio) {
         selectRadio.addEventListener('change', actualizarEventosPorRadio);
-        console.log('✅ Listener de radio de proximidad configurado');
+        console.log('✅ Listener de radio de proximidad configurado (auto-aplicar)');
     }
     
     const fechaInicio = document.getElementById('fechaInicio');
@@ -36,7 +43,87 @@ function configurarEventosInterfaz() {
     // Agregar botones de eventos en la sección de filtros
     agregarBotonesEventos();
     
-    console.log('✅ Eventos de interfaz configurados (optimizado)');
+    console.log('✅ Eventos de interfaz configurados (con filtros unificados)');
+}
+
+/**
+ * Aplica todos los filtros seleccionados (fechas + tipo)
+ * Esta es la función principal que se ejecuta al hacer clic en "Aplicar Filtros"
+ */
+function aplicarTodosFiltrosUnificado() {
+    mostrarEstadoCarga('Aplicando filtros...');
+    
+    // Obtener los eventos base para filtrar
+    let eventosFiltrados = obtenerEventosBaseFiltrado();
+    
+    // 1. Aplicar filtro de tipo de evento
+    const tipoSeleccionado = document.getElementById('selectTipoEvento')?.value;
+    if (tipoSeleccionado) {
+        eventosFiltrados = eventosFiltrados.filter(evento => {
+            return evento.categories && evento.categories.some(cat => cat.id === tipoSeleccionado);
+        });
+        const nombreTipo = configuracionEventos[tipoSeleccionado]?.nombre || tipoSeleccionado;
+        console.log(`🔍 Filtrado por tipo "${nombreTipo}": ${eventosFiltrados.length} eventos`);
+    }
+    
+    // 2. Aplicar filtro de fechas
+    const fechaInicio = document.getElementById('fechaInicio')?.value;
+    const fechaFin = document.getElementById('fechaFin')?.value;
+    
+    if (fechaInicio && fechaFin) {
+        const fechaInicioDate = new Date(fechaInicio);
+        const fechaFinDate = new Date(fechaFin);
+        
+        // Validar fechas
+        if (fechaInicioDate > fechaFinDate) {
+            alert('La fecha de inicio no puede ser posterior a la fecha final.');
+            mostrarEstadoCarga('Error en filtros');
+            return;
+        }
+        
+        eventosFiltrados = eventosFiltrados.filter(evento => {
+            return evento.geometry && evento.geometry.some(geo => {
+                const fechaEvento = new Date(geo.date);
+                return fechaEvento >= fechaInicioDate && fechaEvento <= fechaFinDate;
+            });
+        });
+        
+        console.log(`📅 Filtrado por fechas: ${eventosFiltrados.length} eventos`);
+    } else if (fechaInicio || fechaFin) {
+        // Si solo hay una fecha, mostrar advertencia
+        alert('Por favor, selecciona ambas fechas (inicio y fin) para filtrar correctamente.');
+        mostrarEstadoCarga('Filtros incompletos');
+        return;
+    }
+    
+    // Obtener eventos base para el contador
+    const eventosBase = obtenerEventosBaseFiltrado();
+    
+    // Actualizar vista con los eventos filtrados
+    actualizarVistaEventos(eventosFiltrados, eventosBase.length);
+    
+    // Construir mensaje informativo
+    let mensajeFiltros = [];
+    if (tipoSeleccionado) {
+        const nombreTipo = configuracionEventos[tipoSeleccionado]?.nombre || tipoSeleccionado;
+        mensajeFiltros.push(`tipo: ${nombreTipo}`);
+    }
+    if (fechaInicio && fechaFin) {
+        mensajeFiltros.push(`fechas: ${fechaInicio} a ${fechaFin}`);
+    }
+    
+    const mensajeCompleto = mensajeFiltros.length > 0 
+        ? `Filtros aplicados (${mensajeFiltros.join(', ')})`
+        : 'Mostrando todos los eventos disponibles';
+    
+    console.log(`✅ ${mensajeCompleto}: ${eventosFiltrados.length} eventos mostrados`);
+    
+    // Mostrar notificación
+    if (eventosFiltrados.length === 0) {
+        mostrarNotificacion('No se encontraron eventos con los filtros aplicados', 'info');
+    } else {
+        mostrarNotificacion(`✅ ${eventosFiltrados.length} eventos encontrados`, 'success');
+    }
 }
 
 /**
@@ -74,70 +161,6 @@ function agregarBotonesEventos() {
 }
 
 /**
- * Aplica filtro de fechas con debounce
- */
-function aplicarFiltroFechasOptimizado() {
-    if (debounceTimer) {
-        clearTimeout(debounceTimer);
-    }
-    
-    debounceTimer = setTimeout(() => {
-        aplicarFiltroFechas();
-    }, 300);
-}
-
-/**
- * Filtra por tipo de evento con debounce
- */
-function filtrarPorTipoEventoOptimizado() {
-    if (debounceTimer) {
-        clearTimeout(debounceTimer);
-    }
-    
-    debounceTimer = setTimeout(() => {
-        filtrarPorTipoEvento();
-    }, 200);
-}
-
-/**
- * Aplica el filtro de fechas a los eventos
- */
-function aplicarFiltroFechas() {
-    const fechaInicio = document.getElementById('fechaInicio').value;
-    const fechaFin = document.getElementById('fechaFin').value;
-    
-    if (!fechaInicio || !fechaFin) {
-        alert('Por favor, selecciona ambas fechas para filtrar los eventos.');
-        return;
-    }
-    
-    const fechaInicioDate = new Date(fechaInicio);
-    const fechaFinDate = new Date(fechaFin);
-    
-    if (fechaInicioDate > fechaFinDate) {
-        alert('La fecha de inicio no puede ser posterior a la fecha final.');
-        return;
-    }
-    
-    mostrarEstadoCarga('Filtrando eventos por fechas...');
-    
-    // Obtener eventos base (puede ser eventosData o todoEventosData dependiendo del contexto)
-    const eventosBase = obtenerEventosBaseFiltrado();
-    
-    const eventosFiltrados = eventosBase.filter(evento => {
-        return evento.geometry && evento.geometry.some(geo => {
-            const fechaEvento = new Date(geo.date);
-            return fechaEvento >= fechaInicioDate && fechaEvento <= fechaFinDate;
-        });
-    });
-    
-    console.log(`📅 Filtrado por fechas: ${eventosFiltrados.length} eventos`);
-    
-    // Actualizar tanto la lista como el mapa
-    actualizarVistaEventos(eventosFiltrados, eventosBase.length);
-}
-
-/**
  * Limpia todos los filtros aplicados
  */
 function limpiarFiltros() {
@@ -155,35 +178,9 @@ function limpiarFiltros() {
     
     // Restaurar vista a los eventos actuales (sin filtros de fecha/tipo)
     actualizarVistaEventos(eventosData);
-}
-
-/**
- * Filtra eventos por tipo/categoría
- */
-function filtrarPorTipoEvento() {
-    const tipoSeleccionado = document.getElementById('selectTipoEvento').value;
     
-    if (!tipoSeleccionado) {
-        // Si no hay tipo seleccionado, mostrar todos los eventos actuales
-        actualizarVistaEventos(eventosData);
-        console.log('🌐 Mostrando todos los tipos de eventos');
-        return;
-    }
-    
-    mostrarEstadoCarga('Filtrando por tipo de evento...');
-    
-    // Obtener eventos base para filtrar
-    const eventosBase = obtenerEventosBaseFiltrado();
-    
-    const eventosFiltrados = eventosBase.filter(evento => {
-        return evento.categories && evento.categories.some(cat => cat.id === tipoSeleccionado);
-    });
-    
-    const nombreTipo = configuracionEventos[tipoSeleccionado]?.nombre || tipoSeleccionado;
-    console.log(`🔍 Filtrado por tipo "${nombreTipo}": ${eventosFiltrados.length} eventos`);
-    
-    // Actualizar tanto la lista como el mapa
-    actualizarVistaEventos(eventosFiltrados, eventosBase.length);
+    // Mostrar notificación
+    mostrarNotificacion('Filtros limpiados', 'info');
 }
 
 /**
@@ -191,17 +188,7 @@ function filtrarPorTipoEvento() {
  * @returns {Array} Eventos base
  */
 function obtenerEventosBaseFiltrado() {
-    // Si tenemos filtro de fechas activo, usar eventosData
-    // Si no, usar todoEventosData o eventosData según disponibilidad
-    const fechaInicio = document.getElementById('fechaInicio').value;
-    const fechaFin = document.getElementById('fechaFin').value;
-    
-    if (fechaInicio || fechaFin) {
-        // Si hay filtro de fechas, usar eventosData actual
-        return eventosData;
-    }
-    
-    // Si no hay filtro de fechas, usar todos los eventos disponibles
+    // Usar todoEventosData si está disponible, sino usar eventosData
     return todoEventosData.length > 0 ? todoEventosData : eventosData;
 }
 
@@ -222,7 +209,7 @@ function actualizarContador(mostrados, eventosActuales = null, total = null) {
     const tipoSeleccionado = document.getElementById('selectTipoEvento')?.value;
     const fechaInicio = document.getElementById('fechaInicio')?.value;
     const fechaFin = document.getElementById('fechaFin')?.value;
-    const hayFiltros = tipoSeleccionado || fechaInicio || fechaFin;
+    const hayFiltros = tipoSeleccionado || (fechaInicio && fechaFin);
     
     let texto;
     if (hayFiltros && total && total > mostrados) {

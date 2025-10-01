@@ -26,42 +26,6 @@ function actualizarVistaEventos(eventos, mostrarTotal = null) {
 }
 
 /**
- * Obtiene los eventos filtrados según los criterios activos
- * @returns {Array} Eventos filtrados
- */
-function obtenerEventosFiltrados() {
-    let eventosFiltrados = eventosData;
-    
-    // Filtro por tipo de evento
-    const tipoSeleccionado = document.getElementById('selectTipoEvento')?.value;
-    if (tipoSeleccionado) {
-        eventosFiltrados = eventosFiltrados.filter(evento => 
-            evento.categories && evento.categories.some(cat => cat.id === tipoSeleccionado)
-        );
-        console.log(`🔍 Filtrado por tipo "${tipoSeleccionado}": ${eventosFiltrados.length} eventos`);
-    }
-    
-    // Filtro por fechas
-    const fechaInicio = document.getElementById('fechaInicio')?.value;
-    const fechaFin = document.getElementById('fechaFin')?.value;
-    
-    if (fechaInicio && fechaFin) {
-        const fechaInicioDate = new Date(fechaInicio);
-        const fechaFinDate = new Date(fechaFin);
-        
-        eventosFiltrados = eventosFiltrados.filter(evento => {
-            return evento.geometry && evento.geometry.some(geo => {
-                const fechaEvento = new Date(geo.date);
-                return fechaEvento >= fechaInicioDate && fechaEvento <= fechaFinDate;
-            });
-        });
-        console.log(`📅 Filtrado por fechas: ${eventosFiltrados.length} eventos`);
-    }
-    
-    return eventosFiltrados;
-}
-
-/**
  * Carga eventos cercanos activos basados en la ubicación del usuario
  */
 async function cargarEventosCercanosActivos() {
@@ -156,6 +120,10 @@ async function cargarTodosLosEventosActivos() {
         const selectTipo = document.getElementById('selectTipoEvento');
         if (selectTipo) selectTipo.value = '';
         
+        // Limpiar filtros de fecha
+        document.getElementById('fechaInicio').value = '';
+        document.getElementById('fechaFin').value = '';
+        
         // Actualizar vista con sincronización completa
         actualizarVistaEventos(eventosData);
         
@@ -188,6 +156,10 @@ async function cargarEventosCerrados() {
         const selectTipo = document.getElementById('selectTipoEvento');
         if (selectTipo) selectTipo.value = '';
         
+        // Limpiar filtros de fecha
+        document.getElementById('fechaInicio').value = '';
+        document.getElementById('fechaFin').value = '';
+        
         // Actualizar vista con sincronización completa
         actualizarVistaEventos(eventosData);
         
@@ -203,6 +175,7 @@ async function cargarEventosCerrados() {
 
 /**
  * Actualiza eventos según el radio de proximidad seleccionado
+ * Esta función se ejecuta automáticamente al cambiar el radio
  */
 async function actualizarEventosPorRadio() {
     const nuevoRadio = parseInt(document.getElementById('radioProximidad').value);
@@ -231,6 +204,10 @@ async function actualizarEventosPorRadio() {
         // Limpiar filtros al mostrar todos
         const selectTipo = document.getElementById('selectTipoEvento');
         if (selectTipo) selectTipo.value = '';
+        
+        // Limpiar filtros de fecha
+        document.getElementById('fechaInicio').value = '';
+        document.getElementById('fechaFin').value = '';
         
         actualizarVistaEventos(eventosData);
         return;
@@ -368,15 +345,6 @@ function mostrarEventosEnLista(eventos) {
     });
     
     console.log(`✅ Lista actualizada con ${eventos.length} eventos`);
-}
-
-/**
- * Aplica todos los filtros activos y actualiza la vista
- */
-function aplicarTodosFiltros() {
-    const eventosFiltrados = obtenerEventosFiltrados();
-    actualizarVistaEventos(eventosFiltrados, eventosData.length);
-    console.log(`🔍 Filtros aplicados: ${eventosFiltrados.length} eventos mostrados`);
 }
 
 console.log('✅ Módulo de eventos cargado');
