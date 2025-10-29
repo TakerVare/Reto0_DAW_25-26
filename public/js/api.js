@@ -8,40 +8,105 @@
  */
 async function obtenerEventosDeAPI(soloActivos = true, limite = null) {
     try {
-        let url = soloActivos ? API_ENDPOINTS.nasa.eventosActivos : API_ENDPOINTS.nasa.eventos;
+        let url;
+        let eventos;
         
-        if (limite) {
-            url += (soloActivos ? '&' : '?') + `limit=${limite}`;
+        if (USE_BACKEND_API) {
+            // Usar tu backend
+            url = API_ENDPOINTS.backend.eventos;
+            console.log(`🔄 Cargando desde Backend: ${url}`);
+            
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`);
+            }
+            
+            // El backend devuelve directamente un array de eventos
+            eventos = await response.json();
+            
+            // Filtrar por estado si es necesario
+            if (soloActivos) {
+                eventos = eventos.filter(evento => !evento.closed || evento.closed === null);
+            }
+            
+            // Aplicar límite si es necesario
+            if (limite) {
+                eventos = eventos.slice(0, limite);
+            }
+            
+            // Transformar los datos del backend al formato esperado por el frontend
+            eventos = transformarEventosBackend(eventos);
+            
+        } else {
+            // Usar API de NASA (código original)
+            url = soloActivos ? API_ENDPOINTS.nasa.eventosActivos : API_ENDPOINTS.nasa.eventos;
+            
+            if (limite) {
+                url += (soloActivos ? '&' : '?') + `limit=${limite}`;
+            }
+            
+            console.log(`🔄 Cargando desde API NASA: ${url}`);
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            
+            if (!data?.events) {
+                throw new Error('Respuesta de API inválida');
+            }
+            
+            eventos = data.events;
         }
         
+        // Cache
         const cacheKey = `${url}-${Date.now() - (Date.now() % 300000)}`;
-        if (cacheEventos.has(cacheKey)) {
-            console.log('⚡ Datos obtenidos del cache');
-            return cacheEventos.get(cacheKey);
-        }
+        cacheEventos.set(cacheKey, eventos);
         
-        console.log(`🔄 Cargando desde API: ${url}`);
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        
-        if (!data?.events) {
-            throw new Error('Respuesta de API inválida');
-        }
-        
-        cacheEventos.set(cacheKey, data.events);
-        
-        console.log(`✅ ${data.events.length} eventos obtenidos de la API NASA ${soloActivos ? '(solo activos)' : ''}`);
-        return data.events;
+        console.log(`✅ ${eventos.length} eventos obtenidos`);
+        return eventos;
         
     } catch (error) {
-        console.error('❌ Error en API NASA:', error);
-        throw new Error('No se pudieron obtener los datos de la NASA: ' + error.message);
+        console.error('❌ Error en API:', error);
+        throw new Error('No se pudieron obtener los datos: ' + error.message);
     }
+}
+
+function transformarEventosBackend(eventos) {
+    return eventos.map(evento => {
+        // Transformar categorías si es necesario
+
+        
+
+        const categoriasTransformadas = evento.categories ? evento.categories.map(cat => ({
+            id: cat.idCategory,
+            title: cat.titleCategory,
+            link: cat.linkCategory,
+            description: cat.descriptionCategory
+        })) : [];
+        
+        // Transformar geometría - IMPORTANTE: tu backend no incluye fecha en geometry
+        // Necesitarás agregar esta información o manejarla de otra manera
+        const fechaEvento = evento.date || new Date().toISOString();
+        const geometriaTransformada = evento.geometry ? evento.geometry.map((geo, index) => ({
+            date: fechaEvento, // Usar la fecha del evento
+            type: geo.type || 'Point',
+            coordinates: geo.coordinates || [0, 0]
+        })) : [];
+        
+        return {
+            id: evento.id,
+            title: evento.title,
+            description: evento.description,
+            link: evento.link,
+            closed: evento.closed === "true" || evento.closed === true, // Normalizar a booleano
+            categories: categoriasTransformadas,
+            sources: evento.sources || [],
+            geometry: geometriaTransformada
+        };
+    });
 }
 
 /**

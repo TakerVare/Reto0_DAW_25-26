@@ -39,8 +39,22 @@ const configuracionEventos = {
     'default': { emoji: '⚠️', color: '#666666', nombre: 'Evento Natural' }
 };
 
+/*
+        eventos: 'https://eonet.gsfc.nasa.gov/api/v3/events',
+        eventosActivos: 'https://eonet.gsfc.nasa.gov/api/v3/events?status=open',
+        eventosCerrados: 'https://eonet.gsfc.nasa.gov/api/v3/events?status=closed',
+        categorias: 'https://eonet.gsfc.nasa.gov/api/v3/categories'
+*/
+
 // URLs de la API NASA EONET
 const API_ENDPOINTS = {
+    backend: {
+        eventos: 'http://localhost:5129/api/Event', // Ajusta el puerto según tu configuración
+        categorias: 'http://localhost:5129/api/Category',
+        sources: 'http://localhost:5129/api/Source',
+        geometries: 'http://localhost:5129/api/Geometry'
+    },
+    // Mantén las URLs originales de NASA por si las necesitas
     nasa: {
         eventos: 'https://eonet.gsfc.nasa.gov/api/v3/events',
         eventosActivos: 'https://eonet.gsfc.nasa.gov/api/v3/events?status=open',
@@ -51,11 +65,13 @@ const API_ENDPOINTS = {
     clima: {
         base: 'https://api.openweathermap.org/data/2.5/weather',
         // IMPORTANTE: Obtén tu API key gratuita en https://openweathermap.org/api
-        apiKey: 'TU_API_KEY_AQUI', // ⚠️ Reemplazar con tu API key
+        apiKey: '2f66cbd5fc2fef01979d223f6c148e04', // ⚠️ Reemplazar con tu API key
         // Para pruebas sin API key, usaremos modo demo
-        usarDemo: true // Cambiar a false cuando tengas API key real
+        usarDemo: false // Cambiar a false cuando tengas API key real
     }
 };
+
+const USE_BACKEND_API = true;
 
 // Configuración de capas base del mapa (Ejercicio 8)
 const CAPAS_MAPA = {
