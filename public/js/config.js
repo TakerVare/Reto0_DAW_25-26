@@ -49,10 +49,10 @@ const configuracionEventos = {
 // URLs de la API NASA EONET
 const API_ENDPOINTS = {
     backend: {
-        eventos: 'http://localhost:5129/api/Event', // Ajusta el puerto según tu configuración
-        categorias: 'http://localhost:5129/api/Category',
-        sources: 'http://localhost:5129/api/Source',
-        geometries: 'http://localhost:5129/api/Geometry'
+        eventos: 'http://localhost:5229/api/Event', // Ajusta el puerto según tu configuración
+        categorias: 'http://localhost:5229/api/Category',
+        sources: 'http://localhost:5229/api/Source',
+        geometries: 'http://localhost:5229/api/Geometry'
     },
     // Mantén las URLs originales de NASA por si las necesitas
     nasa: {

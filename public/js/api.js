@@ -26,7 +26,7 @@ async function obtenerEventosDeAPI(soloActivos = true, limite = null) {
             
             // Filtrar por estado si es necesario
             if (soloActivos) {
-                eventos = eventos.filter(evento => !evento.closed || evento.closed === null);
+                eventos = eventos.filter(evento => !evento.closed || evento.closed === null || evento.closed === "false");
             }
             
             // Aplicar límite si es necesario
@@ -73,40 +73,127 @@ async function obtenerEventosDeAPI(soloActivos = true, limite = null) {
         throw new Error('No se pudieron obtener los datos: ' + error.message);
     }
 }
-
+/**
+ * Transforma los eventos del backend al formato esperado por el frontend
+ * @param {Array} eventos - Eventos del backend
+ * @returns {Array} Eventos transformados
+ */
 function transformarEventosBackend(eventos) {
     return eventos.map(evento => {
-        // Transformar categorías si es necesario
-
-        
-
+        // Transformar categorías
         const categoriasTransformadas = evento.categories ? evento.categories.map(cat => ({
-            id: cat.idCategory,
-            title: cat.titleCategory,
-            link: cat.linkCategory,
-            description: cat.descriptionCategory
+            id: cat.idCategory || 'default',
+            title: cat.titleCategory || 'Sin categoría',
+            link: cat.linkCategory || '',
+            description: cat.descriptionCategory || ''
         })) : [];
         
-        // Transformar geometría - IMPORTANTE: tu backend no incluye fecha en geometry
-        // Necesitarás agregar esta información o manejarla de otra manera
-        const fechaEvento = evento.date || new Date().toISOString();
-        const geometriaTransformada = evento.geometry ? evento.geometry.map((geo, index) => ({
-            date: fechaEvento, // Usar la fecha del evento
-            type: geo.type || 'Point',
-            coordinates: geo.coordinates || [0, 0]
+        // Transformar geometría
+        // IMPORTANTE: El backend no incluye fecha en geometry, pero el frontend la necesita
+        // Usaremos una fecha por defecto o la fecha actual si no está disponible
+        
+        // ----- INICIO DE CAMBIOS -----
+        
+        // 1. Cambiado de 'const' a 'let' para permitir la reasignación
+        let geometriaTransformada = evento.geometry ? evento.geometry.map((geo, index) => {
+            // Intentar obtener una fecha del evento o usar la fecha actual
+            let fechaGeometria = new Date().toISOString();
+            
+            // Si el evento tiene una propiedad date, usarla
+            if (evento.date) {
+                fechaGeometria = evento.date;
+            }
+            // Si no, intentar calcular una fecha basada en el índice (para eventos históricos)
+            else if (index > 0) {
+                // Cada geometría podría representar un punto en el tiempo
+                const fechaBase = new Date();
+                fechaBase.setDate(fechaBase.getDate() - index);
+                fechaGeometria = fechaBase.toISOString();
+            }
+            
+            return {
+                date: fechaGeometria,
+                type: geo.type || 'Point',
+                coordinates: geo.coordinates || [0, 0],
+                // Mantener cualquier información adicional que pueda existir
+                magnitudeValue: geo.magnitudeValue,
+                magnitudeUnit: geo.magnitudeUnit
+            };
+        }) : [];
+        
+        // Si no hay geometría, crear una por defecto
+        if (geometriaTransformada.length === 0) {
+            // 2. Reasignar la variable con un nuevo array en lugar de usar .push()
+            geometriaTransformada = [{
+                date: new Date().toISOString(),
+                type: 'Point',
+                coordinates: [0, 0]
+            }];
+        }
+        
+        // ----- FIN DE CAMBIOS -----
+        
+        // Transformar sources
+        const sourcesTransformadas = evento.sources ? evento.sources.map(source => ({
+            id: source.id || 'UNKNOWN',
+            url: source.url || ''
         })) : [];
+        
+        // Normalizar el campo closed a booleano
+        let cerrado = false;
+        if (typeof evento.closed === 'boolean') {
+            cerrado = evento.closed;
+        } else if (typeof evento.closed === 'string') {
+            cerrado = evento.closed.toLowerCase() === 'true' || evento.closed === '1';
+        }
         
         return {
-            id: evento.id,
-            title: evento.title,
-            description: evento.description,
-            link: evento.link,
-            closed: evento.closed === "true" || evento.closed === true, // Normalizar a booleano
+            id: evento.id || `BACKEND_${Date.now()}`,
+            title: evento.title || 'Evento sin título',
+            description: evento.description || evento.descriptionEvent || null,
+            link: evento.link || '',
+            closed: cerrado,
             categories: categoriasTransformadas,
-            sources: evento.sources || [],
+            sources: sourcesTransformadas,
             geometry: geometriaTransformada
         };
     });
+}
+
+/**
+ * Obtiene las categorías disponibles
+ */
+async function obtenerCategorias() {
+    try {
+        if (USE_BACKEND_API) {
+            const response = await fetch(API_ENDPOINTS.backend.categorias);
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status}`);
+            }
+            
+            const categorias = await response.json();
+            
+            // Transformar al formato esperado
+            return categorias.map(cat => ({
+                id: cat.idCategory,
+                title: cat.titleCategory,
+                link: cat.linkCategory,
+                description: cat.descriptionCategory,
+                layers: cat.layersCategory
+            }));
+        } else {
+            const response = await fetch(API_ENDPOINTS.nasa.categorias);
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            return data.categories || [];
+        }
+    } catch (error) {
+        console.error('❌ Error obteniendo categorías:', error);
+        return [];
+    }
 }
 
 /**
